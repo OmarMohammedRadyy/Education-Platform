@@ -1,0 +1,77 @@
+﻿@model PaymentViewModel
+
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="utf-8" />
+    <title>الإشعارات - منصة عمر</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;700&display=swap" rel="stylesheet" />
+    <link href="~/css/site.css" rel="stylesheet" />
+</head>
+<body>
+    <!-- Navbar -->
+    <!-- Notifications Section -->
+    <div class="notifications-section">
+        <div class="container">
+            <h2 class="text-center mb-4">الإشعارات</h2>
+            @if (string.IsNullOrEmpty(Model.ErrorMessage))
+            {
+                <div class="list-group">
+                    @if (Model.IsLoggedIn)
+                    {
+                        @if (Model.UnreadNotifications > 0)
+                        {
+                            <p class="text-info text-center">لديك @Model.UnreadNotifications إشعار(ات) غير مقروء(ة).</p>
+                        }
+
+                        @if (Model.Notifications != null && Model.Notifications.Any())
+                        {
+                            @foreach (var notification in Model.Notifications)
+                            {
+                                <div class="notification-card @(notification.IsRead ? "" : "unread")">
+                                    <p>@notification.Message</p>
+                                    <small>@notification.CreatedAt.ToString("dd/MM/yyyy HH:mm")</small>
+                                    @if (!notification.IsRead)
+                                    {
+                                        <form method="post" action="/Notification/MarkAsRead" class="d-inline">
+                                            <input type="hidden" name="id" value="@notification.NotificationId" />
+                                            <button type="submit" class="btn btn-sm btn-outline-secondary">وضع كمقروء</button>
+                                        </form>
+                                    }
+                                    @if (!string.IsNullOrEmpty(notification.InvoiceUrl))
+                                    {
+                                        <a href="@notification.InvoiceUrl" target="_blank" class="btn btn-success btn-sm mt-2">تحميل الفاتورة</a>
+                                    }
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <p class="text-muted text-center">لا توجد إشعارات حاليًا.</p>
+                        }
+                    }
+                    else
+                    {
+                        <div class="alert alert-warning text-center">
+                            يجب عليك <a href="/Account/Login" class="alert-link">تسجيل الدخول</a> لعرض الإشعارات.
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-danger text-center">@Model.ErrorMessage</div>
+            }
+        </div>
+    </div>
+
+    <!-- Footer -->
+   
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+</body>
+</html>

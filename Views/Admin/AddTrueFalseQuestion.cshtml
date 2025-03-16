@@ -1,0 +1,44 @@
+﻿@model EducationPlatformN.Models.AddTrueFalseQuestionViewModel
+
+@{
+    ViewData["Title"] = "إضافة سؤال صح/خطأ";
+}
+
+<h2>إضافة سؤال صح/خطأ</h2>
+<h4>الدرس: @(ViewBag.LessonTitle ?? "غير محدد")</h4>
+
+<form asp-action="AddTrueFalseQuestion" asp-route-lessonId="@ViewBag.LessonId" method="post">
+    <div class="form-group">
+        <label asp-for="QuestionText" class="control-label">نص السؤال</label>
+        <input asp-for="QuestionText" class="form-control" required />
+        <span asp-validation-for="QuestionText" class="text-danger"></span>
+    </div>
+    <div class="form-group">
+        <label asp-for="CorrectAnswer" class="control-label">الإجابة الصحيحة</label>
+        <select asp-for="CorrectAnswer" class="form-control" required>
+            <option value="">اختر الإجابة الصحيحة</option>
+            <option value="True">صح</option>
+            <option value="False">خطأ</option>
+        </select>
+        <span asp-validation-for="CorrectAnswer" class="text-danger"></span>
+    </div>
+    @if (ViewData.ModelState.Any(x => x.Value.Errors.Any()))
+    {
+        <div class="alert alert-danger">
+            <ul>
+                @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+                {
+                    <li>@error.ErrorMessage</li>
+                }
+            </ul>
+        </div>
+    }
+    <div class="form-group">
+        <button type="submit" class="btn btn-primary">إضافة</button>
+        <a asp-action="ManageQuestions" asp-route-lessonId="@ViewBag.LessonId" class="btn btn-secondary">رجوع</a>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

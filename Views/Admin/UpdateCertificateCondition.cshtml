@@ -1,0 +1,84 @@
+﻿@model EducationPlatformN.Models.CertificateCondition
+
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="utf-8" />
+    <title>تحديث شرط الشهادة - منصة عمر</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;700&display=swap" rel="stylesheet" />
+    <link href="~/css/site.css" rel="stylesheet" />
+</head>
+<body>
+    <div class="container mt-4">
+        <h2>@(Model.ConditionId == 0 ? "إضافة شرط شهادة جديد" : "تحديث شرط الشهادة")</h2>
+
+        @if (!ViewData.ModelState.IsValid)
+        {
+            <div class="alert alert-danger">
+                <ul>
+                    @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+                    {
+                        <li>@error.ErrorMessage</li>
+                    }
+                </ul>
+            </div>
+        }
+
+        <form asp-action="UpdateCertificateCondition" method="post">
+            <input type="hidden" asp-for="ConditionId" />
+
+            <div class="mb-3">
+                <label asp-for="CourseId" class="form-label">الدورة <span class="text-danger">*</span></label>
+                <select asp-for="CourseId" class="form-select" asp-items="ViewBag.Courses" required>
+                    <option value="">اختر الدورة</option>
+                </select>
+                <small class="form-text text-muted">يرجى اختيار الدورة التي تريد تحديد شروط شهادتها.</small>
+                <span asp-validation-for="CourseId" class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="ConditionType" class="form-label">نوع الشرط <span class="text-danger">*</span></label>
+                <select asp-for="ConditionType" class="form-select" required>
+                    <option value="">اختر نوع الشرط</option>
+                    <option value="CompletionPercentage">نسبة الإكمال</option>
+                    <option value="QuizScore">درجة الاختبار</option>
+                </select>
+                <small class="form-text text-muted">حدد نوع الشرط المطلوب للحصول على الشهادة.</small>
+                <span asp-validation-for="ConditionType" class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Value" class="form-label">القيمة <span class="text-danger">*</span></label>
+                <input asp-for="Value" class="form-control" type="number" min="0" step="0.01" required />
+                <small class="form-text text-muted">أدخل قيمة غير سالبة (مثال: 80 لنسبة الإكمال أو درجة الاختبار).</small>
+                <span asp-validation-for="Value" class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Description" class="form-label">الوصف (اختياري)</label>
+                <textarea asp-for="Description" class="form-control" rows="3"></textarea>
+                <small class="form-text text-muted">أضف وصفًا إذا لزم الأمر.</small>
+                <span asp-validation-for="Description" class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <button type="submit" class="btn btn-primary">حفظ</button>
+                @if (Model.CourseId > 0)
+                {
+                    <a asp-action="ManageCertificateConditions" asp-route-courseId="@Model.CourseId" class="btn btn-secondary">رجوع</a>
+                }
+                else
+                {
+                    <a asp-action="Dashboard" class="btn btn-secondary">رجوع</a>
+                }
+            </div>
+        </form>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script asp-src-include="~/lib/jquery-validation/dist/jquery.validate.min.js"></script>
+    <script asp-src-include="~/lib/jquery-validation-unobtrusive/jquery.validate.unobtrusive.min.js"></script>
+</body>
+</html>

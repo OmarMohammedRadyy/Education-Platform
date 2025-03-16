@@ -1,0 +1,113 @@
+﻿@model User
+
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="utf-8" />
+    <title>تعديل مستخدم - منصة عمر</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet" />
+    <link href="~/css/site.css" rel="stylesheet" />
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <a class="navbar-brand" href="#">منصة عمر</a>
+        <div class="collapse navbar-collapse">
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item"><a class="nav-link" href="/"><i class="fas fa-home"></i> الرئيسية</a></li>
+                <li class="nav-item"><a class="nav-link" href="/Course"><i class="fas fa-book"></i> الدورات</a></li>
+                @{
+                    bool? isLoggedIn = ViewBag.IsLoggedIn as bool?;
+                    if (isLoggedIn.HasValue && isLoggedIn.Value)
+                    {
+                        <li class="nav-item"><a class="nav-link" href="/Notification"><i class="fas fa-bell"></i> الإشعارات (@(ViewBag.UnreadNotifications ?? 0))</a></li>
+                    }
+                }
+                @{
+                    bool? isAdmin = ViewBag.IsAdmin as bool?;
+                    if (isAdmin.HasValue && isAdmin.Value)
+                    {
+                        <li class="nav-item"><a class="nav-link active" href="/Admin/Dashboard"><i class="fas fa-tachometer-alt"></i> لوحة التحكم</a></li>
+                    }
+                }
+                @if (!(isLoggedIn.HasValue && isLoggedIn.Value))
+                {
+                    <li class="nav-item"><a class="nav-link" href="/Account/Login"><i class="fas fa-sign-in-alt"></i> تسجيل الدخول</a></li>
+                }
+                else
+                {
+                    <li class="nav-item"><a class="nav-link" href="/Account/Logout"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a></li>
+                }
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <h2>تعديل مستخدم</h2>
+
+        @if (!string.IsNullOrEmpty(ViewBag.SaveError))
+        {
+            <div class="alert alert-danger">@ViewBag.SaveError</div>
+        }
+
+        <form asp-action="EditUser" method="post">
+            <input type="hidden" asp-for="UserId" />
+            <div class="mb-3">
+                <label asp-for="FullName" class="form-label">الاسم الكامل</label>
+                <input asp-for="FullName" class="form-control" />
+                <span asp-validation-for="FullName" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="Email" class="form-label">البريد الإلكتروني</label>
+                <input asp-for="Email" class="form-control" />
+                <span asp-validation-for="Email" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="Phone" class="form-label">رقم الهاتف</label>
+                <input asp-for="Phone" class="form-control" />
+                <span asp-validation-for="Phone" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="Role" class="form-label">الدور</label>
+                <select asp-for="Role" class="form-select">
+                    <option value="Admin">مشرف</option>
+                    <option value="Teacher">معلم</option>
+                    <option value="Student">طالب</option>
+                </select>
+                <span asp-validation-for="Role" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="Language" class="form-label">اللغة</label>
+                <select asp-for="Language" class="form-select">
+                    <option value="ar">العربية</option>
+                    <option value="en">الإنجليزية</option>
+                </select>
+                <span asp-validation-for="Language" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="PasswordHash" class="form-label">كلمة المرور (اتركها فارغة إذا لم ترغب في التغيير)</label>
+                <input asp-for="PasswordHash" class="form-control" placeholder="اترك فارغًا للحفاظ على الكلمة الحالية" />
+                <span asp-validation-for="PasswordHash" class="text-danger"></span>
+            </div>
+            <button type="submit" class="btn btn-primary">حفظ التعديلات</button>
+            <a asp-action="Dashboard" class="btn btn-secondary">رجوع</a>
+        </form>
+    </div>
+
+    <footer class="bg-dark text-white text-center py-4 mt-4">
+        <div class="container">
+            <p>© 2025 منصة عمر. جميع الحقوق محفوظة. <a asp-area="" asp-controller="Home" asp-action="Privacy" class="text-white">سياسة الخصوصية</a></p>
+            <div class="mt-2">
+                <a href="#" class="text-white mx-2"><i class="fab fa-facebook-f"></i></a>
+                <a href="#" class="text-white mx-2"><i class="fab fa-twitter"></i></a>
+                <a href="#" class="text-white mx-2"><i class="fab fa-instagram"></i></a>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jquery-validation@1.19.5/dist/jquery.validate.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jquery-validation-unobtrusive@3.2.11/dist/jquery.validate.unobtrusive.min.js"></script>
+</body>
+</html>

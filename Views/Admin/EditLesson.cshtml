@@ -1,0 +1,90 @@
+﻿@model Lesson
+<div class="container mt-4">
+    <h2>تعديل الدرس</h2>
+    @if (ViewBag.SaveError != null)
+    {
+        <div class="alert alert-danger">@ViewBag.SaveError</div>
+    }
+    @if (ViewBag.Errors != null)
+    {
+        <div class="alert alert-danger">
+            <ul>
+                @foreach (var error in ViewBag.Errors)
+                {
+                    <li>@error</li>
+                }
+            </ul>
+        </div>
+    }
+    <form id="editLessonForm" method="post" action="@Url.Action("EditLesson", "Admin")">
+        <input type="hidden" name="lessonId" value="@Model.LessonId" />
+        <input type="hidden" name="courseId" value="@Model.CourseId" />
+        <div class="mb-3">
+            <label for="title" class="form-label">عنوان الدرس</label>
+            <input type="text" id="title" name="title" class="form-control" required value="@Model.Title" />
+            <span class="text-danger" id="titleError"></span>
+        </div>
+        <div class="mb-3">
+            <label for="videoUrl" class="form-label">رابط الفيديو</label>
+            <input type="text" id="videoUrl" name="videoUrl" class="form-control" required value="@Model.VideoUrl" />
+            <span class="text-danger" id="videoUrlError"></span>
+        </div>
+        <div class="mb-3">
+            <label for="duration" class="form-label">المدة (بالدقائق)</label>
+            <input type="number" id="duration" name="duration" class="form-control" required value="@Model.Duration" />
+            <span class="text-danger" id="durationError"></span>
+        </div>
+        <button type="submit" class="btn btn-primary">حفظ التعديلات</button>
+        <a asp-action="Dashboard" class="btn btn-secondary">إلغاء</a>
+    </form>
+</div>
+
+@section Scripts {
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const courseId = '@Model.CourseId';
+            const lessonId = '@Model.LessonId';
+            console.log('LessonId:', lessonId);
+            console.log('CourseId:', courseId);
+
+            document.getElementById('editLessonForm').addEventListener('submit', function (e) {
+                let hasError = false;
+                const title = document.getElementById('title').value.trim();
+                const videoUrl = document.getElementById('videoUrl').value.trim();
+                const duration = document.getElementById('duration').value.trim();
+
+                if (!title) {
+                    document.getElementById('titleError').textContent = 'عنوان الدرس مطلوب.';
+                    hasError = true;
+                } else {
+                    document.getElementById('titleError').textContent = '';
+                }
+
+                if (!videoUrl) {
+                    document.getElementById('videoUrlError').textContent = 'رابط الفيديو مطلوب.';
+                    hasError = true;
+                } else {
+                    document.getElementById('videoUrlError').textContent = '';
+                }
+
+                if (!duration || parseInt(duration) <= 0) {
+                    document.getElementById('durationError').textContent = 'المدة مطلوبة ويجب أن تكون أكبر من 0.';
+                    hasError = true;
+                } else {
+                    document.getElementById('durationError').textContent = '';
+                }
+
+                if (courseId === '0' || !courseId) {
+                    alert('معرف الدورة غير صالح. يجب أن يكون رقمًا موجبًا.');
+                    hasError = true;
+                }
+
+                if (hasError) {
+                    e.preventDefault();
+                }
+            });
+        });
+    </script>
+}

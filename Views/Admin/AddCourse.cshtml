@@ -1,0 +1,109 @@
+﻿@using Newtonsoft.Json
+@using static EducationPlatformN.Controllers.AdminController
+@model object
+
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="utf-8" />
+    <title>إضافة دورة - منصة عمر</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet" />
+    <link href="~/css/site.css" rel="stylesheet" />
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <a class="navbar-brand" href="#">منصة عمر</a>
+        <div class="collapse navbar-collapse">
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item"><a class="nav-link" href="/"><i class="fas fa-home"></i> الرئيسية</a></li>
+                <li class="nav-item"><a class="nav-link" href="/Course"><i class="fas fa-book"></i> الدورات</a></li>
+                @{
+                    bool? isLoggedIn = ViewBag.IsLoggedIn as bool?;
+                    if (isLoggedIn.HasValue && isLoggedIn.Value)
+                    {
+                        <li class="nav-item"><a class="nav-link" href="/Notification"><i class="fas fa-bell"></i> الإشعارات (@(ViewBag.UnreadNotifications ?? 0))</a></li>
+                    }
+                }
+                @{
+                    bool? isAdmin = ViewBag.IsAdmin as bool?;
+                    if (isAdmin.HasValue && isAdmin.Value)
+                    {
+                        <li class="nav-item"><a class="nav-link active" href="/Admin/Dashboard"><i class="fas fa-tachometer-alt"></i> لوحة التحكم</a></li>
+                    }
+                }
+                @if (!(isLoggedIn.HasValue && isLoggedIn.Value))
+                {
+                    <li class="nav-item"><a class="nav-link" href="/Account/Login"><i class="fas fa-sign-in-alt"></i> تسجيل الدخول</a></li>
+                }
+                else
+                {
+                    <li class="nav-item"><a class="nav-link" href="/Account/Logout"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a></li>
+                }
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <h2>إضافة دورة جديدة</h2>
+
+        @if (!string.IsNullOrEmpty(ViewBag.SaveError))
+        {
+            <div class="alert alert-danger">@ViewBag.SaveError</div>
+        }
+
+        <form asp-action="AddCourse" method="post">
+            <div class="mb-3">
+                <label class="form-label">العنوان</label>
+                <input type="text" name="title" class="form-control" required />
+            </div>
+            <div class="mb-3">
+                <label class="form-label">الوصف</label>
+                <textarea name="description" class="form-control" required></textarea>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">السعر</label>
+                <input type="number" name="price" step="0.01" class="form-control" required min="0" />
+            </div>
+            <div class="mb-3">
+                <label class="form-label">المعلم</label>
+                <select name="teacherId" class="form-select">
+                    <option value="">بدون معلم</option>
+                    @if (ViewBag.TeachersJson != null)
+                    {
+                        var teachers = JsonConvert.DeserializeObject<List<EducationPlatformN.Controllers.TeacherDto>>(ViewBag.TeachersJson.ToString());
+                        @foreach (var teacher in teachers)
+                        {
+                            <option value="@teacher.Id">@teacher.Name</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">رابط الصورة (Thumbnail)</label>
+                <input type="url" name="thumbnailUrl" class="form-control" placeholder="مثال: /images/course.jpg" />
+            </div>
+            <div class="mb-3">
+                <label class="form-label">رابط الفيديو التعريفي (اختياري)</label>
+                <input type="url" name="introVideoUrl" class="form-control" placeholder="مثال: https://example.com/video.mp4" />
+            </div>
+            <button type="submit" class="btn btn-primary">حفظ الدورة</button>
+            <a asp-action="Dashboard" class="btn btn-secondary">رجوع</a>
+        </form>
+    </div>
+
+    <footer class="bg-dark text-white text-center py-4 mt-4">
+        <div class="container">
+            <p>© 2025 منصة عمر. جميع الحقوق محفوظة. <a asp-area="" asp-controller="Home" asp-action="Privacy" class="text-white">سياسة الخصوصية</a></p>
+            <div class="mt-2">
+                <a href="#" class="text-white mx-2"><i class="fab fa-facebook-f"></i></a>
+                <a href="#" class="text-white mx-2"><i class="fab fa-twitter"></i></a>
+                <a href="#" class="text-white mx-2"><i class="fab fa-instagram"></i></a>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+</body>
+</html>

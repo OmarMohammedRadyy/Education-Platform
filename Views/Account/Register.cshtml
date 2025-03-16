@@ -1,0 +1,145 @@
+﻿@model User
+
+@{
+    ViewData["Title"] = "إنشاء حساب جديد - منصة عمر";
+}
+
+<div class="register-section">
+    <div class="register-container">
+        <h2>إنشاء حساب جديد</h2>
+        @if (ViewBag.Error != null)
+        {
+            <div class="alert alert-danger text-center">@ViewBag.Error</div>
+        }
+        <form method="post" asp-action="Register">
+            <div class="mb-4">
+                <label asp-for="FullName" class="form-label">الاسم الكامل</label>
+                <input asp-for="FullName" class="form-control" placeholder="أدخل اسمك الكامل" />
+                <span asp-validation-for="FullName" class="text-danger"></span>
+            </div>
+            <div class="mb-4">
+                <label asp-for="Email" class="form-label">البريد الإلكتروني</label>
+                <input asp-for="Email" class="form-control" placeholder="أدخل بريدك الإلكتروني" />
+                <span asp-validation-for="Email" class="text-danger"></span>
+            </div>
+            <div class="mb-4">
+                <label asp-for="Phone" class="form-label">رقم الهاتف</label>
+                <input asp-for="Phone" class="form-control" placeholder="أدخل رقم هاتفك" />
+                <span asp-validation-for="Phone" class="text-danger"></span>
+            </div>
+            <div class="mb-4">
+                <label asp-for="PasswordHash" class="form-label">كلمة المرور</label>
+                <input asp-for="PasswordHash" type="password" class="form-control" placeholder="أدخل كلمة المرور" />
+                <span asp-validation-for="PasswordHash" class="text-danger"></span>
+            </div>
+            <div class="mb-4">
+                <label asp-for="Role" class="form-label">الدور</label>
+                <select asp-for="Role" class="form-control">
+                    <option value="Student">طالب</option>
+                    <option value="Teacher">مدرس</option>
+                </select>
+                <span asp-validation-for="Role" class="text-danger"></span>
+            </div>
+            <button type="submit" class="btn btn-primary w-100">تسجيل</button>
+            <a href="/Account/Login" class="btn btn-link d-block text-center mt-3">لديك حساب؟ تسجيل الدخول</a>
+        </form>
+    </div>
+</div>
+
+@* @section Styles {
+    <style>
+        .register-section {
+            min-height: 80vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .register-container {
+            background: rgba(15, 12, 41, 0.9);
+            border: 1px solid #00ffcc;
+            border-radius: 15px;
+            padding: 30px;
+            width: 100%;
+            max-width: 450px;
+            box-shadow: 0 0 25px rgba(0, 255, 204, 0.2);
+            transition: all 0.3s ease;
+        }
+
+            .register-container:hover {
+                transform: translateY(-5px);
+                box-shadow: 0 0 35px rgba(0, 255, 204, 0.3);
+            }
+
+            .register-container h2 {
+                font-size: 1.8rem;
+                color: #00ffcc;
+                text-align: center;
+                margin-bottom: 25px;
+                font-weight: 700;
+            }
+
+            .register-container .form-label {
+                font-size: 1rem;
+                color: #00ffcc;
+                margin-bottom: 8px;
+            }
+
+            .register-container .form-control {
+                background: rgba(255, 255, 255, 0.1);
+                border: 1px solid #00ffcc;
+                color: #fff;
+                padding: 12px;
+                border-radius: 8px;
+                transition: all 0.3s ease;
+            }
+
+                .register-container .form-control:focus {
+                    background: rgba(255, 255, 255, 0.2);
+                    border-color: #ff007a;
+                    box-shadow: 0 0 10px rgba(255, 0, 122, 0.5);
+                }
+
+            .register-container .btn-primary {
+                background: #ff007a;
+                border: none;
+                padding: 12px;
+                font-size: 1.1rem;
+                border-radius: 8px;
+                transition: all 0.3s ease;
+            }
+
+                .register-container .btn-primary:hover {
+                    background: #cc0066;
+                    transform: scale(1.03);
+                }
+
+            .register-container .btn-link {
+                color: #00ffcc;
+                text-decoration: none;
+                font-size: 0.95rem;
+            }
+
+                .register-container .btn-link:hover {
+                    color: #ff007a;
+                }
+
+        media (max-width: 576px) {
+            .register-container
+
+        {
+            padding: 20px;
+        }
+
+        .register-container h2 {
+            font-size: 1.5rem;
+        }
+
+        .register-container .btn-primary {
+            font-size: 1rem;
+        }
+
+        }
+    </style>
+} *@

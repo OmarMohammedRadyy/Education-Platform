@@ -1,0 +1,50 @@
+﻿@model EducationPlatformN.Models.EditMultipleChoiceQuestionViewModel
+
+@{
+    ViewData["Title"] = "تعديل سؤال اختيار متعدد";
+}
+
+<h2>تعديل سؤال اختيار متعدد</h2>
+<h4>الدرس: @(ViewBag.LessonTitle ?? "غير محدد")</h4>
+
+<form asp-action="EditMultipleChoiceQuestion" method="post">
+    <input type="hidden" asp-for="QuestionId" />
+    <div class="form-group">
+        <label asp-for="QuestionText" class="control-label">نص السؤال</label>
+        <input asp-for="QuestionText" class="form-control" required />
+        <span asp-validation-for="QuestionText" class="text-danger"></span>
+    </div>
+    <div class="form-group">
+        <label asp-for="OptionA" class="control-label">الخيار أ</label>
+        <input asp-for="OptionA" class="form-control" required />
+        <span asp-validation-for="OptionA" class="text-danger"></span>
+    </div>
+    <div class="form-group">
+        <label asp-for="OptionB" class="control-label">الخيار ب</label>
+        <input asp-for="OptionB" class="form-control" required />
+        <span asp-validation-for="OptionB" class="text-danger"></span>
+    </div>
+    <div class="form-group">
+        <label asp-for="OptionC" class="control-label">الخيار ج (اختياري)</label>
+        <input asp-for="OptionC" class="form-control" />
+        <span asp-validation-for="OptionC" class="text-danger"></span>
+    </div>
+    <div class="form-group">
+        <label asp-for="OptionD" class="control-label">الخيار د (اختياري)</label>
+        <input asp-for="OptionD" class="form-control" />
+        <span asp-validation-for="OptionD" class="text-danger"></span>
+    </div>
+    <div class="form-group">
+        <label asp-for="CorrectAnswer" class="control-label">الإجابة الصحيحة</label>
+        <input asp-for="CorrectAnswer" class="form-control" required />
+        <span asp-validation-for="CorrectAnswer" class="text-danger"></span>
+    </div>
+    <div class="form-group">
+        <button type="submit" class="btn btn-primary">حفظ</button>
+        <a asp-action="ManageQuestions" asp-route-lessonId="@ViewBag.LessonId" class="btn btn-secondary">رجوع</a>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

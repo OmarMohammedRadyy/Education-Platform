@@ -1,0 +1,118 @@
+﻿@model EducationPlatformN.Controllers.QuizController.QuizResultViewModel
+@using static EducationPlatformN.Controllers.QuizController.AnswerDetail
+@inject EducationPlatformN.Models.AppDbContext _context
+@{
+    ViewData["Title"] = "نتائج الاختبار";
+    // استخدام ViewBag.LessonId بشكل آمن
+    var lessonId = ViewBag.LessonId as int? ?? Model.Answers.FirstOrDefault()?.LessonId;
+    var courseId = lessonId.HasValue ? _context.Lessons.FirstOrDefault(l => l.LessonId == lessonId)?.CourseId ?? 0 : 0;
+}
+
+<style>
+    body {
+        background: linear-gradient(135deg, #2c3e50, #ecf0f1);
+        color: #2c3e50;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    .result-container {
+        max-width: 900px;
+        margin: 50px auto;
+        padding: 30px;
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        transition: transform 0.3s ease;
+    }
+
+        .result-container:hover {
+            transform: translateY(-5px);
+        }
+
+    .score-box {
+        background: #3498db;
+        color: white;
+        padding: 20px;
+        border-radius: 10px;
+        text-align: center;
+        margin-bottom: 20px;
+    }
+
+    .answer-card {
+        background: #ffffff;
+        border: 1px solid #ddd;
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 15px;
+        transition: box-shadow 0.3s ease;
+    }
+
+        .answer-card:hover {
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+    .correct {
+        color: #27ae60;
+        font-weight: bold;
+    }
+
+    .incorrect {
+        color: #e74c3c;
+        font-weight: bold;
+    }
+
+    .btn-custom {
+        background: #e74c3c;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 5px;
+        text-decoration: none;
+        transition: background 0.3s ease;
+    }
+
+        .btn-custom:hover {
+            background: #c0392b;
+            color: white;
+        }
+</style>
+
+<div class="result-container">
+    <h1 class="text-center mb-4" style="color: #3498db;">نتائج الاختبار</h1>
+    <h3 class="text-center mb-4" style="color: #2c3e50;">@Model.LessonTitle</h3>
+
+    <div class="score-box">
+        <h4><strong>الدرجة: @Model.Score%</strong></h4>
+        <p><strong>تاريخ الإكمال:</strong> @Model.CompletionDate.ToString("dd/MM/yyyy HH:mm")</p>
+    </div>
+
+    <h4 class="mt-4" style="color: #2c3e50;">تفاصيل الإجابات</h4>
+    @foreach (var answer in Model.Answers)
+    {
+        <div class="answer-card">
+            <p><strong>السؤال:</strong> @answer.QuestionText</p>
+            <p><strong>إجابتك:</strong> @answer.SelectedAnswer</p>
+            <p><strong>الإجابة الصحيحة:</strong> @answer.CorrectAnswer</p>
+            <p>
+                <strong>الحالة:</strong>
+                @if (answer.IsCorrect)
+                {
+                    <span class="correct">صحيح <i class="fas fa-check-circle"></i></span>
+                }
+                else
+                {
+                    <span class="incorrect">خاطئ <i class="fas fa-times-circle"></i></span>
+                }
+            </p>
+        </div>
+    }
+
+    <div class="text-center mt-4">
+        <a asp-action="MyLessons" asp-controller="Payment" asp-route-courseId="@courseId" class="btn-custom">العودة إلى الدروس</a>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+    <partial name="_ValidationScriptsPartial" />
+}

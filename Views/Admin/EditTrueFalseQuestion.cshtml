@@ -1,0 +1,33 @@
+﻿@model EducationPlatformN.Models.EditTrueFalseQuestionViewModel
+
+@{
+    ViewData["Title"] = "تعديل سؤال صح/خطأ";
+}
+
+<h2>تعديل سؤال صح/خطأ</h2>
+<h4>الدرس: @(ViewBag.LessonTitle ?? "غير محدد")</h4>
+
+<form asp-action="EditTrueFalseQuestion" method="post">
+    <input type="hidden" asp-for="QuestionId" />
+    <div class="form-group">
+        <label asp-for="QuestionText" class="control-label">نص السؤال</label>
+        <input asp-for="QuestionText" class="form-control" required />
+        <span asp-validation-for="QuestionText" class="text-danger"></span>
+    </div>
+    <div class="form-group">
+        <label asp-for="CorrectAnswer" class="control-label">الإجابة الصحيحة</label>
+        <select asp-for="CorrectAnswer" class="form-control" required>
+            <option value="True" selected="@(Model.CorrectAnswer == "True")">صح</option>
+            <option value="False" selected="@(Model.CorrectAnswer == "False")">خطأ</option>
+        </select>
+        <span asp-validation-for="CorrectAnswer" class="text-danger"></span>
+    </div>
+    <div class="form-group">
+        <button type="submit" class="btn btn-primary">حفظ</button>
+        <a asp-action="ManageQuestions" asp-route-lessonId="@ViewBag.LessonId" class="btn btn-secondary">رجوع</a>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

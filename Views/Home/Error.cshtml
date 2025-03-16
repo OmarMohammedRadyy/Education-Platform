@@ -1,0 +1,25 @@
+﻿@model string
+@{
+    ViewData["Title"] = "خطأ";
+}
+
+<div class="container mt-5">
+    <h2 class="text-danger">حدث خطأ</h2>
+    @if (ViewBag.StatusCode != null)
+    {
+        <p class="text-danger">@Html.Raw(ViewBag.ErrorMessage)</p>
+    }
+    else
+    {
+        <p class="text-danger">@ViewBag.ErrorMessage</p>
+    }
+
+    @if (!string.IsNullOrEmpty(ViewBag.ReturnUrl))
+    {
+        <p class="text-muted">يمكنك العودة إلى الصفحة المطلوبة بعد <a href="/Account/Login?ReturnUrl=@ViewBag.ReturnUrl" class="alert-link">تسجيل الدخول</a>.</p>
+    }
+    else
+    {
+        <p class="text-muted">يمكنك العودة إلى <a href="/" class="alert-link">الرئيسية</a> أو المحاولة لاحقًا.</p>
+    }
+</div>

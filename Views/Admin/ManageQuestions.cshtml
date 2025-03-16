@@ -1,0 +1,83 @@
+﻿@model List<EducationPlatformN.Models.Question>
+
+@{
+    ViewData["Title"] = "إدارة الأسئلة";
+}
+
+<h2>إدارة الأسئلة</h2>
+
+<div class="mb-3">
+    <label class="control-label">اختر درس:</label>
+    <select asp-items="@(new SelectList(ViewBag.Lessons, "LessonId", "Title"))" onchange="location.href='@Url.Action("ManageQuestions", "Admin")?lessonId=' + this.value">
+        <option value="">اختر درس</option>
+    </select>
+</div>
+
+@if (ViewBag.LessonId != null)
+{
+    <h4>الأسئلة للدرس: @ViewBag.LessonTitle</h4>
+
+    <div class="mb-3">
+        <a asp-action="AddMultipleChoiceQuestion" asp-route-lessonId="@ViewBag.LessonId" class="btn btn-primary">إضافة سؤال اختيار متعدد</a>
+        <a asp-action="AddTrueFalseQuestion" asp-route-lessonId="@ViewBag.LessonId" class="btn btn-primary">إضافة سؤال صح/خطأ</a>
+        <a asp-action="AddTextQuestion" asp-route-lessonId="@ViewBag.LessonId" class="btn btn-primary">إضافة سؤال إجابة نصية</a>
+    </div>
+
+    <h5>أسئلة الاختيار المتعدد</h5>
+    @if (ViewBag.MultipleChoiceQuestions != null && ((IEnumerable<EducationPlatformN.Models.Question>)ViewBag.MultipleChoiceQuestions).Any())
+    {
+        <table class="table">
+            <thead><tr><th>نص السؤال</th><th>الإجراءات</th></tr></thead>
+            <tbody>
+                @foreach (var q in (IEnumerable<EducationPlatformN.Models.Question>)ViewBag.MultipleChoiceQuestions)
+                {
+                    <tr><td>@q.QuestionText</td><td><a asp-action="EditMultipleChoiceQuestion" asp-route-id="@q.QuestionId" class="btn btn-warning">تعديل</a> <form asp-action="DeleteQuestion" method="post" style="display:inline;"><input type="hidden" name="id" value="@q.QuestionId" /><button type="submit" class="btn btn-danger" onclick="return confirm('هل أنت متأكد؟');">حذف</button></form></td></tr>
+                }
+            </tbody>
+        </table>
+    }
+    else
+    {
+        <p>لا توجد أسئلة اختيار متعدد.</p>
+    }
+
+    <h5>أسئلة صح/خطأ</h5>
+    @if (ViewBag.TrueFalseQuestions != null && ((IEnumerable<EducationPlatformN.Models.Question>)ViewBag.TrueFalseQuestions).Any())
+    {
+        <table class="table">
+            <thead><tr><th>نص السؤال</th><th>الإجراءات</th></tr></thead>
+            <tbody>
+                @foreach (var q in (IEnumerable<EducationPlatformN.Models.Question>)ViewBag.TrueFalseQuestions)
+                {
+                    <tr><td>@q.QuestionText</td><td><a asp-action="EditTrueFalseQuestion" asp-route-id="@q.QuestionId" class="btn btn-warning">تعديل</a> <form asp-action="DeleteQuestion" method="post" style="display:inline;"><input type="hidden" name="id" value="@q.QuestionId" /><button type="submit" class="btn btn-danger" onclick="return confirm('هل أنت متأكد؟');">حذف</button></form></td></tr>
+                }
+            </tbody>
+        </table>
+    }
+    else
+    {
+        <p>لا توجد أسئلة صح/خطأ.</p>
+    }
+
+    <h5>أسئلة الإجابة النصية</h5>
+    @if (ViewBag.TextQuestions != null && ((IEnumerable<EducationPlatformN.Models.Question>)ViewBag.TextQuestions).Any())
+    {
+        <table class="table">
+            <thead><tr><th>نص السؤال</th><th>الإجراءات</th></tr></thead>
+            <tbody>
+                @foreach (var q in (IEnumerable<EducationPlatformN.Models.Question>)ViewBag.TextQuestions)
+                {
+                    <tr><td>@q.QuestionText</td><td><a asp-action="EditTextQuestion" asp-route-id="@q.QuestionId" class="btn btn-warning">تعديل</a> <form asp-action="DeleteQuestion" method="post" style="display:inline;"><input type="hidden" name="id" value="@q.QuestionId" /><button type="submit" class="btn btn-danger" onclick="return confirm('هل أنت متأكد؟');">حذف</button></form></td></tr>
+                }
+            </tbody>
+        </table>
+    }
+    else
+    {
+        <p>لا توجد أسئلة إجابة نصية.</p>
+    }
+}
+else
+{
+    <p>يرجى اختيار درس لعرض الأسئلة.</p>
+}

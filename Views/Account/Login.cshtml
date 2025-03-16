@@ -1,0 +1,127 @@
+﻿@model LoginViewModel
+
+@{
+    ViewData["Title"] = "تسجيل الدخول - منصة عمر";
+}
+
+<div class="login-section">
+    <div class="login-container">
+        <h2>تسجيل الدخول</h2>
+        @if (ViewBag.Error != null)
+        {
+            <div class="alert alert-danger text-center">@ViewBag.Error</div>
+        }
+        <form method="post" asp-action="Login">
+            <div class="mb-4">
+                <label asp-for="Email" class="form-label">البريد الإلكتروني</label>
+                <input asp-for="Email" class="form-control" placeholder="أدخل بريدك الإلكتروني" />
+                <span asp-validation-for="Email" class="text-danger"></span>
+            </div>
+            <div class="mb-4">
+                <label asp-for="Password" class="form-label">كلمة المرور</label>
+                <input asp-for="Password" type="password" class="form-control" placeholder="أدخل كلمة المرور" />
+                <span asp-validation-for="Password" class="text-danger"></span>
+            </div>
+            <button type="submit" class="btn btn-primary w-100">تسجيل الدخول</button>
+            <a href="/Account/Register" class="btn btn-link d-block text-center mt-3">إنشاء حساب جديد</a>
+        </form>
+    </div>
+</div>
+
+@* @section Styles {
+    <style>
+        .login-section {
+            min-height: 80vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .login-container {
+            background: rgba(15, 12, 41, 0.9);
+            border: 1px solid #00ffcc;
+            border-radius: 15px;
+            padding: 30px;
+            width: 100%;
+            max-width: 450px;
+            box-shadow: 0 0 25px rgba(0, 255, 204, 0.2);
+            transition: all 0.3s ease;
+        }
+
+            .login-container:hover {
+                transform: translateY(-5px);
+                box-shadow: 0 0 35px rgba(0, 255, 204, 0.3);
+            }
+
+            .login-container h2 {
+                font-size: 1.8rem;
+                color: #00ffcc;
+                text-align: center;
+                margin-bottom: 25px;
+                font-weight: 700;
+            }
+
+            .login-container .form-label {
+                font-size: 1rem;
+                color: #00ffcc;
+                margin-bottom: 8px;
+            }
+
+            .login-container .form-control {
+                background: rgba(255, 255, 255, 0.1);
+                border: 1px solid #00ffcc;
+                color: #fff;
+                padding: 12px;
+                border-radius: 8px;
+                transition: all 0.3s ease;
+            }
+
+                .login-container .form-control:focus {
+                    background: rgba(255, 255, 255, 0.2);
+                    border-color: #ff007a;
+                    box-shadow: 0 0 10px rgba(255, 0, 122, 0.5);
+                }
+
+            .login-container .btn-primary {
+                background: #ff007a;
+                border: none;
+                padding: 12px;
+                font-size: 1.1rem;
+                border-radius: 8px;
+                transition: all 0.3s ease;
+            }
+
+                .login-container .btn-primary:hover {
+                    background: #cc0066;
+                    transform: scale(1.03);
+                }
+
+            .login-container .btn-link {
+                color: #00ffcc;
+                text-decoration: none;
+                font-size: 0.95rem;
+            }
+
+                .login-container .btn-link:hover {
+                    color: #ff007a;
+                }
+
+        media (max-width: 576px) {
+            .login-container
+
+        {
+            padding: 20px;
+        }
+
+        .login-container h2 {
+            font-size: 1.5rem;
+        }
+
+        .login-container .btn-primary {
+            font-size: 1rem;
+        }
+
+        }
+    </style>
+} *@

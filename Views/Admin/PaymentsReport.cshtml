@@ -1,0 +1,92 @@
+﻿@using EducationPlatformN.Controllers
+@using static EducationPlatformN.Controllers.AdminController
+@model List<PaymentReportViewModel>
+<div class="container mt-4">
+    <h2 class="mb-4 text-primary">تقرير المدفوعات</h2>
+
+    <!-- قسم المعلومات العامة -->
+    <div class="alert alert-info mb-4 shadow">
+        <h4 class="alert-heading">الإحصاءات العامة:</h4>
+        @{
+            var totalSubscriptions = Model.Sum(r => r.Subscriptions.Count);
+            var totalAmount = Model.Sum(r => r.Subscriptions.Sum(s => s.Amount));
+        }
+
+        @if (totalSubscriptions > 0)
+        {
+            <div class="row">
+                <div class="col-md-4">
+                    <p class="mb-1"><i class="fas fa-users me-2"></i>عدد المشتركين: @Model.Count</p>
+                </div>
+                <div class="col-md-4">
+                    <p class="mb-1"><i class="fas fa-file-invoice me-2"></i>إجمالي الاشتراكات: @totalSubscriptions</p>
+                </div>
+                <div class="col-md-4">
+                    <p class="mb-1"><i class="fas fa-coins me-2"></i>المجموع المحصل: @totalAmount.ToString("N0") جنيه</p>
+                </div>
+            </div>
+        }
+        else
+        {
+            <p class="mb-0"><i class="fas fa-info-circle me-2"></i>لا توجد مدفوعات حاليًا</p>
+        }
+    </div>
+
+    @if (ViewBag.SaveError != null)
+    {
+        <div class="alert alert-danger">@ViewBag.SaveError</div>
+    }
+
+    <div class="table-responsive">
+        <table class="table table-bordered table-striped table-hover shadow">
+            <thead class="table-primary">
+                <tr>
+                    <th>اسم الطالب</th>
+                    <th>عدد الاشتراكات</th>
+                    <th>المجموع (جنيه)</th>
+                    <th>اسم الدورة</th>
+                    <th>المبلغ</th>
+                    <th>تاريخ الدفع</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var report in Model)
+                {
+                    int subscriptionCount = report.Subscriptions.Count;
+
+                    if (subscriptionCount == 0)
+                    {
+                        <tr>
+                            <td>@report.UserName</td>
+                            <td class="text-end">0</td>
+                            <td class="text-end">0</td>
+                            <td colspan="3" class="text-muted">لا يوجد اشتراكات</td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @for (int i = 0; i < subscriptionCount; i++)
+                        {
+                            var sub = report.Subscriptions[i];
+                            <tr>
+                                @if (i == 0)
+                                {
+                                    <td class="align-middle" rowspan="@subscriptionCount">@report.UserName</td>
+                                    <td class="text-end align-middle" rowspan="@subscriptionCount">@report.TotalPayments</td>
+                                    <td class="text-end align-middle" rowspan="@subscriptionCount">@report.TotalAmount.ToString("N0")</td>
+                                }
+                                <td>@sub.CourseTitle</td>
+                                <td class="text-end">@sub.Amount.ToString("N0") جنيه</td>
+                                <td class="text-end">@sub.PaymentDate.ToString("dd/MM/yyyy")</td>
+                            </tr>
+                        }
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <a asp-action="Dashboard" class="btn btn-primary mt-3">
+        <i class="fas fa-arrow-left me-2"></i>العودة
+    </a>
+</div>
