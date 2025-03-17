@@ -1,0 +1,214 @@
+﻿@model EducationPlatformN.Models.StudentDashboardViewModel
+<!DOCTYPE html>
+<html>
+<head>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .dashboard {
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+
+        .card {
+            margin-bottom: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        .progress-circle {
+            max-width: 250px;
+            margin: 20px auto;
+        }
+
+        .table {
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .btn-filter {
+            background-color: #007bff;
+            color: white;
+        }
+
+            .btn-filter:hover {
+                background-color: #0056b3;
+            }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <h2 class="text-center mb-4">لوحة متابعة الطالب</h2>
+
+        <!-- مرشح البيانات -->
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">تصفية البيانات</h5>
+                <form asp-action="Dashboard" method="get" class="row g-3">
+                    <input type="hidden" name="courseId" value="@Context.Request.Query["courseId"]" />
+                    <div class="col-md-3">
+                        <label>عنوان الدرس</label>
+                        <input type="text" name="filterLessonTitle" value="@Model.FilterLessonTitle" class="form-control" />
+                    </div>
+                    <div class="col-md-3">
+                        <label>من تاريخ</label>
+                        <input type="date" name="filterStartDate" value="@(Model.FilterStartDate?.ToString("yyyy-MM-dd"))" class="form-control" />
+                    </div>
+                    <div class="col-md-3">
+                        <label>إلى تاريخ</label>
+                        <input type="date" name="filterEndDate" value="@(Model.FilterEndDate?.ToString("yyyy-MM-dd"))" class="form-control" />
+                    </div>
+                    <div class="col-md-3">
+                        <label>الحد الأدنى للدرجة</label>
+                        <input type="number" name="filterMinScore" value="@Model.FilterMinScore" class="form-control" step="0.01" />
+                    </div>
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-filter">تطبيق التصفية</button>
+                        <a asp-action="Dashboard" asp-route-courseId="@Context.Request.Query["courseId"]" class="btn btn-secondary">إعادة تعيين</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- تقدم الدورة -->
+        <div class="card">
+            <div class="card-body text-center">
+                <h5 class="card-title">تقدم الدورة</h5>
+                <canvas id="progressChart" class="progress-circle"></canvas>
+                <p class="mt-3">@Model.CourseProgress.ToString("F2")%</p>
+            </div>
+        </div>
+
+        <!-- تقدم الدروس -->
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">تقدم الدروس</h5>
+                <ul class="list-group">
+                    @foreach (var lesson in Model.Lessons)
+                    {
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            @lesson.LessonTitle - الدرجة: @lesson.Score.ToString("F2")% - المحاولات: @lesson.AttemptCount
+                            <a asp-action="QuizResults" asp-route-lessonId="@lesson.LessonId" class="btn btn-sm btn-primary">عرض النتائج</a>
+                        </li>
+                    }
+                </ul>
+            </div>
+        </div>
+
+        <!-- سجل الاختبارات -->
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">سجل الاختبارات</h5>
+                <table class="table table-striped">
+                    <thead>
+                        <tr><th>الدرس</th><th>الدرجة</th><th>التاريخ</th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var attempt in Model.QuizHistory)
+                        {
+                            <tr>
+                                <td>@attempt.LessonTitle</td>
+                                <td>@attempt.Score.ToString("F2")%</td>
+                                <td>@attempt.CompletionDate.ToString("dd/MM/yyyy HH:mm")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- الشهادات -->
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">شهاداتك</h5>
+                @if (Model.Certificates.Any())
+                {
+                    <ul class="list-group">
+                        @foreach (var cert in Model.Certificates)
+                        {
+                            <li class="list-group-item">
+                                @cert.CourseTitle - @cert.IssuedDate.ToString("dd/MM/yyyy") -
+                                <a href="/Quiz/DownloadCertificate?fileName=@cert.CertificateFileName" class="btn btn-sm btn-success">تحميل</a>
+                            </li>
+                        }
+                    </ul>
+                }
+                else
+                {
+                    <p class="text-muted">لا توجد شهادات بعد.</p>
+                }
+            </div>
+        </div>
+
+        <!-- المذكرات -->
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">مذكرات الدروس</h5>
+                @if (Model.Notes.Any())
+                {
+                    <ul class="list-group">
+                        @foreach (var note in Model.Notes)
+                        {
+                            var lessonTitle = Model.Lessons.FirstOrDefault(l => l.LessonId == note.LessonId)?.LessonTitle ?? "درس غير محدد";
+                            <li>
+                                <a href="@note.FileUrl">@note.FileUrl.Split('/').Last()</a> - @note.UploadDate.ToString("dd/MM/yyyy HH:mm")
+                                <form asp-action="DeleteLessonNote" method="post" style="display:inline;">
+                                    <input type="hidden" name="lessonNoteId" value="@note.LessonNoteId" />
+                                    <button type="submit">حذف</button>
+                                </form>
+                            </li>
+                        }
+                    </ul>
+                }
+                else
+                {
+                    <p class="text-muted">لا توجد مذكرات متاحة حاليًا.</p>
+                }
+            </div>
+        </div>
+
+        <!-- الإشعارات -->
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">الإشعارات</h5>
+                @if (ViewBag.Notifications != null && ViewBag.Notifications.Count > 0)
+                {
+                    <ul class="list-group">
+                        @foreach (var notification in ViewBag.Notifications)
+                        {
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                @notification.Message - @notification.CreatedAt.ToString("dd/MM/yyyy HH:mm")
+                                <form asp-action="MarkNotificationAsRead" method="post" style="display:inline;">
+                                    <input type="hidden" name="notificationId" value="@notification.NotificationId" />
+                                    <input type="hidden" name="courseId" value="@Context.Request.Query["courseId"]" />
+                                    <button type="submit" class="btn btn-sm btn-outline-primary">تم القراءة</button>
+                                </form>
+                            </li>
+                        }
+                    </ul>
+                }
+                else
+                {
+                    <p class="text-muted">لا توجد إشعارات جديدة.</p>
+                }
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        var ctx = document.getElementById('progressChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['مكتمل', 'متبقي'],
+                datasets: [{
+                    data: [@Model.CourseProgress, 100 - @Model.CourseProgress],
+                    backgroundColor: ['#28a745', '#e9ecef']
+                }]
+            },
+            options: { cutout: '50%' }
+        });
+    </script>
+</body>
+</html>

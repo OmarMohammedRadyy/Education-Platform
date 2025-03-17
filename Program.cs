@@ -4,12 +4,13 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Session;
 using Microsoft.AspNetCore.Diagnostics.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
+using EducationPlatformN.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
-
+builder.Services.AddScoped<ICertificateService, CertificateService>();
 // Configure Entity Framework Core with SQL Server
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 if (string.IsNullOrEmpty(connectionString))

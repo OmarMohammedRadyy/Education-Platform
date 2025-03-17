@@ -1,246 +1,151 @@
 ﻿@model EducationPlatformN.Models.Course
-
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>منصة عمر التعليمية - @Model.Title</title>
-    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-    <link href="~/css/modern-edu.css" rel="stylesheet" />
+    <title>دروسي - منصة عمر</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;700&display=swap" rel="stylesheet" />
+    <link href="~/css/site.css" rel="stylesheet" />
 </head>
 <body>
-    <div class="loading-overlay" id="loadingOverlay">
-        <div class="loader">
-            <div class="spinner"></div>
+    <div class="container-fluid">
+        <header>
+            <h1>منصة عمر التعليمية</h1>
+            <h2>@Model.Title</h2>
+        </header>
+        <div class="course-info">
+            <p>@Model.Description</p>
+            <small>المعلم: @(Model.Teacher?.FullName ?? "غير محدد")</small>
         </div>
-    </div>
-
-    <div class="app-container">
-        <!-- الشريط الجانبي -->
-        <aside class="sidebar">
-            <div class="sidebar-header">
-                <div class="logo">
-                    <span class="logo-icon"><i class="fas fa-graduation-cap"></i></span>
-                    <h3 class="logo-text">منصة عمر</h3>
-                </div>
-                <button class="sidebar-toggle" id="sidebarToggle">
-                    <i class="fas fa-arrow-right"></i>
-                </button>
-            </div>
-
-            <div class="course-info">
-                <div class="course-image">
-                    @if (!string.IsNullOrEmpty(Model.ThumbnailUrl))
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="video-container">
+                    @if (!string.IsNullOrEmpty(Model.IntroVideoUrl))
                     {
-                        <img src="@Model.ThumbnailUrl" alt="@Model.Title" />
+                        <iframe src="@GetEmbedUrl(Model.IntroVideoUrl)" allowfullscreen></iframe>
+                    }
+                    else if (Model.Lessons.Any())
+                    {
+                        <iframe src="@GetEmbedUrl(Model.Lessons.First().VideoUrl)" allowfullscreen></iframe>
                     }
                     else
                     {
-                        <div class="placeholder-image">
-                            <i class="fas fa-book-open"></i>
-                        </div>
+                        <div class="no-content">لا يوجد محتوى متاح</div>
                     }
                 </div>
-                <div class="course-details">
-                    <h1 class="course-title">@Model.Title</h1>
-                    <div class="teacher">
-                        <i class="fas fa-chalkboard-teacher"></i>
-                        <span>@Model.Teacher?.FullName</span>
-                    </div>
+                <div class="d-flex justify-content-between mt-3">
+                    <button class="btn btn-primary" onclick="takeQuiz()" id="quizBtn" style="display: none;">
+                        <i class="fas fa-clipboard-check"></i> اختبار الدرس
+                    </button>
+                    <button class="btn btn-info" onclick="openNotes()">
+                        <i class="fas fa-sticky-note"></i> ملاحظات الدرس
+                    </button>
                 </div>
             </div>
-
-            <div class="nav-wrapper">
-                <h5 class="sidebar-title"><i class="fas fa-list-ul"></i> محتويات الدورة</h5>
-                <nav class="lessons-nav">
-                    @{
-                        int lessonIndex = 1;
-                    }
+            <div class="col-lg-4">
+                <div class="lessons-list">
+                    <h5>دروس الدورة</h5>
                     @foreach (var lesson in Model.Lessons)
                     {
                         <div class="lesson-card" data-id="@lesson.LessonId" data-video="@GetEmbedUrl(lesson.VideoUrl)">
-                            <div class="lesson-number">@(lessonIndex++)</div>
-                            <div class="lesson-content">
-                                <h6 class="lesson-title">@lesson.Title</h6>
-                                <div class="lesson-details">
-                                    <span class="lesson-duration"><i class="fas fa-clock"></i> @lesson.Duration</span>
-                                    <span class="completed-badge"><i class="fas fa-check-circle"></i> تم</span>
-                                </div>
-                            </div>
+                            <h6>@lesson.Title</h6>
+                            <small>المدة: @lesson.Duration</small>
+                            <span class="completed-badge @(Model.StudentProgress.Any(p => p.LessonId == lesson.LessonId && p.IsCompleted) ? "" : "d-none")">
+                                <i class="fas fa-check-circle"></i> مكتمل
+                            </span>
                         </div>
                     }
                     @if (!Model.Lessons.Any())
                     {
-                        <div class="empty-lessons">
-                            <div class="empty-icon"><i class="fas fa-folder-open"></i></div>
-                            <p>لا توجد دروس متاحة حاليًا</p>
-                        </div>
+                        <p class="text-muted text-center">لا توجد دروس متاحة حاليًا</p>
                     }
-                </nav>
-            </div>
-        </aside>
-
-        <!-- المحتوى الرئيسي -->
-        <main class="main-content">
-            <header class="main-header">
-                <div class="left-section">
-                    <div class="progress-container">
-                        <div class="progress-label">
-                            <span>تقدمك في الدورة</span>
-                            <span class="progress-percent" id="progressPercent">0%</span>
-                        </div>
-                        <div class="progress-bar">
-                            <div class="progress-filled" id="progressFilled" style="width: 0%"></div>
-                        </div>
-                    </div>
-                </div>
-                <div class="right-section">
-                    <button class="theme-toggle" id="themeToggle">
-                        <i class="fas fa-moon"></i>
-                    </button>
-                </div>
-            </header>
-
-            <div class="content-area">
-                <div class="video-section">
-                    <div class="video-container" id="videoContainer">
-                        @if (!string.IsNullOrEmpty(Model.IntroVideoUrl))
-                        {
-                            <iframe src="@GetEmbedUrl(Model.IntroVideoUrl)" allowfullscreen loading="lazy"></iframe>
-                        }
-                        else if (Model.Lessons.Any())
-                        {
-                            <iframe src="@GetEmbedUrl(Model.Lessons.First().VideoUrl)" allowfullscreen loading="lazy"></iframe>
-                        }
-                        else
-                        {
-                            <div class="no-content">
-                                <div class="no-content-icon"><i class="fas fa-video-slash"></i></div>
-                                <p>لا يوجد محتوى متاح</p>
-                            </div>
-                        }
-                    </div>
-
-                    <div class="current-lesson-info" id="currentLessonInfo">
-                        <h2 class="current-lesson-title">
-                            @if (Model.Lessons.Any())
-                            {
-                                @Model.Lessons.First().Title
-                            }
-                            else
-                            {
-                                <text>مقدمة الدورة</text>
-                            }
-                        </h2>
-                        <div class="lesson-description">
-                            <p>@Model.Description</p>
-                        </div>
-                    </div>
-
-                    <div class="actions-bar">
-                        <button class="action-button quiz-button" id="quizBtn" style="display: none;">
-                            <i class="fas fa-clipboard-check"></i> اختبار الدرس
-                        </button>
-                        <button class="action-button notes-button" onclick="openNotes()">
-                            <i class="fas fa-sticky-note"></i> ملاحظات الدرس
-                        </button>
-                        <button class="action-button resources-button" id="resourcesBtn">
-                            <i class="fas fa-file-download"></i> ملفات الدرس
-                        </button>
-                    </div>
-                </div>
-
-                <div class="course-description-section">
-                    <h3 class="section-title"><i class="fas fa-info-circle"></i> عن الدورة</h3>
-                    <div class="course-description-content">
-                        <p>@Model.Description</p>
-                    </div>
-                </div>
-            </div>
-        </main>
-    </div>
-
-    <!-- النوافذ المنبثقة -->
-    <div id="notesModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3><i class="fas fa-sticky-note"></i> ملاحظات الدرس</h3>
-                <button class="close-button" id="closeNotesModal"><i class="fas fa-times"></i></button>
-            </div>
-            <div class="modal-body">
-                <div class="notes-editor">
-                    <textarea id="notesArea" placeholder="أضف ملاحظاتك هنا..."></textarea>
-                </div>
-                <div class="modal-footer">
-                    <button class="action-button save-button" id="saveNotes">
-                        <i class="fas fa-save"></i> حفظ الملاحظات
-                    </button>
                 </div>
             </div>
         </div>
     </div>
+    <button class="theme-toggle" id="themeToggle">
+        <i class="fas fa-moon"></i>
+    </button>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script>
+        const themeToggle = document.getElementById('themeToggle');
+        const body = document.body;
 
-    <div id="resourcesModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3><i class="fas fa-file-download"></i> ملفات الدرس</h3>
-                <button class="close-button" id="closeResourcesModal"><i class="fas fa-times"></i></button>
-            </div>
-            <div class="modal-body">
-                <div class="resources-list" id="resourcesList">
-                    <div class="resource-item">
-                        <div class="resource-icon"><i class="fas fa-file-pdf"></i></div>
-                        <div class="resource-info">
-                            <h4>ملخص الدرس</h4>
-                            <p>ملف PDF يحتوي على ملخص للدرس</p>
-                        </div>
-                        <button class="download-button"><i class="fas fa-download"></i></button>
-                    </div>
-                    <div class="resource-item">
-                        <div class="resource-icon"><i class="fas fa-file-powerpoint"></i></div>
-                        <div class="resource-info">
-                            <h4>عرض تقديمي</h4>
-                            <p>العرض التقديمي المستخدم في الدرس</p>
-                        </div>
-                        <button class="download-button"><i class="fas fa-download"></i></button>
-                    </div>
-                    <div class="empty-resources" style="display: none;">
-                        <div class="empty-icon"><i class="fas fa-folder-open"></i></div>
-                        <p>لا توجد ملفات متاحة لهذا الدرس</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+        function toggleTheme() {
+            const isDark = body.classList.toggle('dark-mode');
+            themeToggle.innerHTML = isDark ? '<i class="fas fa-sun"></i>' : '<i class="fas fa-moon"></i>';
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+        }
 
-    <!-- سكريبت جافاسكريبت -->
-    <script src="~/js/modern-edu.js"></script>
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        if (savedTheme === 'dark') {
+            body.classList.add('dark-mode');
+            themeToggle.innerHTML = '<i class="fas fa-sun"></i>';
+        }
+        themeToggle.addEventListener('click', toggleTheme);
+
+        let currentLessonId = null;
+        document.querySelectorAll('.lesson-card').forEach(card => {
+            card.addEventListener('click', function () {
+                const videoUrl = this.dataset.video;
+                const videoContainer = document.querySelector('.video-container');
+                videoContainer.innerHTML = `<iframe src="${videoUrl}?autoplay=1" allowfullscreen></iframe>`;
+
+                document.querySelectorAll('.lesson-card').forEach(c => c.classList.remove('active'));
+                this.classList.add('active');
+
+                const lessonId = this.dataset.id;
+                currentLessonId = lessonId;
+
+                fetch('/Payment/MarkLessonCompleted', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ lessonId: lessonId, courseId: '@Model.CourseId' })
+                }).then(response => response.json()).then(data => {
+                    if (data.success) {
+                        this.querySelector('.completed-badge').classList.remove('d-none');
+                        if (data.certificateUrl) {
+                            alert('تهانينا! تم إصدار شهادتك.');
+                            window.location.href = data.certificateUrl;
+                        }
+                    }
+                });
+
+                const quizBtn = document.getElementById('quizBtn');
+                quizBtn.style.display = 'block';
+            });
+        });
+
+        function takeQuiz() {
+            if (currentLessonId) {
+                window.location.href = `/Quiz/TakeQuiz?lessonId=${currentLessonId}`;
+            }
+        }
+
+        function openNotes() {
+            window.location.href = `/Notes?courseId=@Model.CourseId`;
+        }
+    </script>
 </body>
 </html>
 
 @functions {
-    // Helper function to convert YouTube URLs to embed format
     private static string GetEmbedUrl(string url)
     {
-        if (string.IsNullOrEmpty(url))
-        {
-            return "";
-        }
-
+        if (string.IsNullOrEmpty(url)) return "";
         if (url.Contains("youtu.be"))
         {
             var videoId = url.Split('/').Last().Split('?').First();
             return $"https://www.youtube.com/embed/{videoId}";
         }
-
         if (url.Contains("watch?v="))
         {
             var videoId = url.Split('=').Last().Split('&').First();
             return $"https://www.youtube.com/embed/{videoId}";
         }
-
         return url;
     }
 }

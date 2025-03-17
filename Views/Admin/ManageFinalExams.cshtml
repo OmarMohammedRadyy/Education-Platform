@@ -1,0 +1,31 @@
+﻿@model IEnumerable<EducationPlatformN.Models.FinalExam>
+
+<h2>إدارة الاختبارات النهائية لدورة: @ViewBag.CourseTitle</h2>
+<a asp-action="AddFinalExam" asp-route-courseId="@ViewBag.CourseId" class="btn btn-primary">إضافة اختبار نهائي</a>
+
+@if (Model == null || !Model.Any())
+{
+    <p>لا توجد اختبارات نهائية لهذه الدورة بعد. أضف اختبارًا جديدًا باستخدام الزر أعلاه.</p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>العنوان</th>
+                <th>الإجراءات</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var exam in Model)
+            {
+                <tr>
+                    <td>@exam.Title</td>
+                    <td>
+                        <a asp-action="ManageFinalExamQuestions" asp-route-finalExamId="@exam.FinalExamId" class="btn btn-info">إدارة الأسئلة</a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}

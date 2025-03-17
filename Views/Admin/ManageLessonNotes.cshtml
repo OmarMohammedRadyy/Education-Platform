@@ -1,0 +1,107 @@
+﻿@model List<EducationPlatformN.Controllers.AdminController.LessonNotesViewModel>
+
+<h2>إدارة المذكرات</h2>
+
+<div class="form-group">
+    <label>اختر الدورة</label>
+    <select id="courseSelect" class="form-control" asp-items="ViewBag.Courses" onchange="loadLessons()">
+        <option value="">اختر دورة</option>
+    </select>
+</div>
+
+<form asp-action="UploadLessonNote" method="post" enctype="multipart/form-data" id="uploadForm">
+    <input type="hidden" name="courseId" id="courseId" value="@ViewBag.CourseId" />
+    <div class="form-group">
+        <label>اختر الدرس</label>
+        <select name="lessonId" id="lessonSelect" class="form-control" required>
+            <option value="">اختر درسًا</option>
+            @if (Model != null && Model.Any())
+            {
+                foreach (var lesson in Model)
+                {
+                    <option value="@lesson.LessonId">@lesson.Title</option>
+                }
+            }
+        </select>
+    </div>
+    <div class="form-group">
+        <label>رفع الملف</label>
+        <input type="file" name="file" class="form-control" required />
+    </div>
+    <button type="submit" class="btn btn-primary">رفع المذكرة</button>
+</form>
+
+@if (Model != null && Model.Any())
+{
+    <h3>المذكرات الحالية لدورة: @ViewBag.CourseTitle</h3>
+    @foreach (var lesson in Model)
+    {
+        <h4>@lesson.Title</h4>
+        @if (lesson.Notes.Any())
+        {
+            <ul>
+                @foreach (var note in lesson.Notes)
+                {
+                    <li>
+                        <a href="@note.FileUrl">@note.FileUrl.Split('/').Last()</a> - @note.UploadDate.ToString("dd/MM/yyyy HH:mm")
+                        <form asp-action="DeleteLessonNote" method="post" style="display:inline;" onsubmit="return confirm('هل أنت متأكد؟');">
+                            <input type="hidden" name="lessonNoteId" value="@note.LessonNoteId" />
+                            <button type="submit" class="btn btn-danger">حذف</button>
+                        </form>
+                    </li>
+                }
+            </ul>
+        }
+        else
+        {
+            <p>لا توجد مذكرات لهذا الدرس.</p>
+        }
+    }
+}
+else if (ViewBag.CourseId != null)
+{
+    <p>لا توجد دروس متاحة لهذه الدورة. أضف دروسًا أولاً من <a asp-action="AddLesson" asp-route-courseId="@ViewBag.CourseId">هنا</a>.</p>
+}
+else
+{
+    <p>يرجى اختيار دورة أولاً لعرض الدروس والمذكرات.</p>
+}
+
+@section Scripts {
+    <script>
+        function loadLessons() {
+            var courseId = document.getElementById("courseSelect").value;
+            var lessonSelect = document.getElementById("lessonSelect");
+            document.getElementById("courseId").value = courseId;
+
+            // تنظيف قائمة الدروس
+            lessonSelect.innerHTML = '<option value="">اختر درسًا</option>';
+
+            if (courseId) {
+                fetch('/Admin/GetLessonsForCourse?courseId=' + courseId)
+                    .then(response => response.json())
+                    .then(data => {
+                        data.forEach(lesson => {
+                            var option = document.createElement("option");
+                            option.value = lesson.lessonId;
+                            option.text = lesson.title || "درس بدون عنوان";
+                            lessonSelect.appendChild(option);
+                        });
+                    })
+                    .catch(error => {
+                        console.error('Error loading lessons:', error);
+                        lessonSelect.innerHTML = '<option value="">خطأ في جلب الدروس</option>';
+                    });
+            }
+        }
+
+        // تحديث القائمة عند التحميل إذا كان هناك courseId محدد مسبقًا
+        window.onload = function () {
+            var courseId = @Html.Raw(Json.Serialize(ViewBag.CourseId));
+            if (courseId) {
+                document.getElementById("courseSelect").value = courseId;
+                loadLessons();
+            }
+        };
+    </script>
+}

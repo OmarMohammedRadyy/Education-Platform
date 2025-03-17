@@ -3,6 +3,8 @@ using EducationPlatformN.Models;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
+using System.IO;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
@@ -21,10 +23,10 @@ namespace EducationPlatformN.Controllers
     public class AdminController : Controller
     {
         private readonly AppDbContext _context;
-        private readonly IHostEnvironment _env; // استبدل IWebHostEnvironment بـ IHostEnvironment
+        private readonly IWebHostEnvironment _env; // استبدل IWebHostEnvironment بـ IHostEnvironment
         private readonly ILogger<AdminController> _logger; // إضافة ILogger للتسجيل
 
-        public AdminController(AppDbContext context, IHostEnvironment env, ILogger<AdminController> logger)
+        public AdminController(AppDbContext context, IWebHostEnvironment env, ILogger<AdminController> logger)
         {
             _context = context ?? throw new ArgumentNullException(nameof(context));
             _env = env ?? throw new ArgumentNullException(nameof(env));
@@ -2357,6 +2359,364 @@ namespace EducationPlatformN.Controllers
 
             return $"/certificates/certificate_{studentId}_{courseId}.pdf";
         }
+
+        public class LessonNotesViewModel
+        {
+            public int LessonId { get; set; }
+            public string Title { get; set; }
+            public List<LessonNote> Notes { get; set; }
+        }
+        [HttpGet]
+        public async Task<IActionResult> ManageFinalExams(int courseId)
+        {
+            if (!IsAdminLoggedIn()) return RedirectToAction("Login", "Account");
+
+            // التحقق من أن courseId صالح
+            if (courseId <= 0)
+            {
+                _logger.LogWarning("Invalid courseId provided: {CourseId}", courseId);
+                return BadRequest("معرف الدورة غير صالح.");
+            }
+
+            var course = await _context.Courses
+                .Include(c => c.FinalExams)
+                .FirstOrDefaultAsync(c => c.CourseId == courseId);
+
+            if (course == null)
+            {
+                _logger.LogWarning("Course not found for courseId: {CourseId}", courseId);
+                return NotFound("الدورة غير موجودة. تأكد من معرف الدورة.");
+            }
+
+            ViewBag.CourseId = courseId;
+            ViewBag.CourseTitle = course.Title;
+            return View("ManageFinalExams", course.FinalExams);
+        }
+
+        // إضافة اختبار نهائي
+        [HttpGet]
+        public IActionResult AddFinalExam(int? courseId)
+        {
+            if (!IsAdminLoggedIn()) return RedirectToAction("Login", "Account");
+
+            var model = new FinalExam();
+            if (courseId.HasValue && courseId > 0)
+            {
+                var course = _context.Courses.Find(courseId.Value);
+                if (course == null)
+                {
+                    _logger.LogWarning("Course not found for courseId: {CourseId}", courseId);
+                    return NotFound("الدورة غير موجودة.");
+                }
+                model.CourseId = courseId.Value;
+            }
+
+            // جلب جميع الدورات
+            var courses = _context.Courses.ToList();
+            if (!courses.Any())
+            {
+                _logger.LogWarning("No courses found in the database.");
+                ModelState.AddModelError("", "لا توجد دورات متاحة لإضافة اختبار نهائي.");
+            }
+            ViewBag.Courses = new SelectList(courses, "CourseId", "Title", model.CourseId);
+            return View(model);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AddFinalExam(FinalExam finalExam)
+        {
+            if (!IsAdminLoggedIn()) return RedirectToAction("Login", "Account");
+
+            _logger.LogInformation("Received FinalExam: CourseId={CourseId}, Title={Title}", finalExam.CourseId, finalExam.Title);
+
+            // التحقق اليدوي من القيم
+            bool isValid = true;
+            if (finalExam.CourseId <= 0)
+            {
+                ModelState.AddModelError("CourseId", "الدورة مطلوبة ويجب أن تكون قيمة موجبة.");
+                isValid = false;
+            }
+            if (string.IsNullOrWhiteSpace(finalExam.Title))
+            {
+                ModelState.AddModelError("Title", "العنوان مطلوب.");
+                isValid = false;
+            }
+
+            // إذا كان هناك أخطاء أخرى في ModelState، سجلها
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList();
+                _logger.LogWarning("Invalid ModelState when adding FinalExam: {Errors}", string.Join("; ", errors));
+            }
+
+            // إذا كانت القيم صالحة يدويًا، تابع العملية
+            if (isValid)
+            {
+                try
+                {
+                    var course = await _context.Courses.FindAsync(finalExam.CourseId);
+                    if (course == null)
+                    {
+                        ModelState.AddModelError("CourseId", "الدورة غير موجودة.");
+                        _logger.LogWarning("Attempted to add FinalExam with invalid CourseId: {CourseId}", finalExam.CourseId);
+                    }
+                    else
+                    {
+                        finalExam.CreatedAt = DateTime.Now;
+                        _context.FinalExams.Add(finalExam);
+                        int changes = await _context.SaveChangesAsync();
+
+                        if (changes > 0)
+                        {
+                            _logger.LogInformation("FinalExam added successfully with ID: {FinalExamId}", finalExam.FinalExamId);
+                            return RedirectToAction("ManageFinalExams", new { courseId = finalExam.CourseId });
+                        }
+                        ModelState.AddModelError("", "لم يتم حفظ الاختبار النهائي.");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error adding FinalExam for CourseId: {CourseId}", finalExam.CourseId);
+                    ModelState.AddModelError("", $"خطأ أثناء إضافة الاختبار: {ex.Message}");
+                }
+            }
+
+            // إعادة تعبئة القائمة في حالة الفشل
+            ViewBag.Courses = new SelectList(_context.Courses, "CourseId", "Title", finalExam.CourseId);
+            return View(finalExam);
+        }
+
+        // إضافة سؤال لاختبار نهائي
+        [HttpGet]
+        public IActionResult AddFinalExamQuestion(int finalExamId)
+        {
+            return View(new FinalExamQuestion { FinalExamId = finalExamId });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AddFinalExamQuestion(FinalExamQuestion question)
+        {
+            if (!IsAdminLoggedIn()) return RedirectToAction("Login", "Account");
+
+            if (ModelState.IsValid)
+            {
+                try
+                {
+                    var finalExam = await _context.FinalExams.FindAsync(question.FinalExamId);
+                    if (finalExam == null)
+                    {
+                        ModelState.AddModelError("FinalExamId", "الاختبار النهائي غير موجود.");
+                        return View(question);
+                    }
+
+                    // التحقق من الخيارات بناءً على نوع السؤال
+                    if (question.QuestionType == "MultipleChoice" &&
+                        (string.IsNullOrEmpty(question.OptionA) || string.IsNullOrEmpty(question.OptionB)))
+                    {
+                        ModelState.AddModelError("", "يجب توفير خيارين على الأقل للأسئلة متعددة الخيارات.");
+                        return View(question);
+                    }
+                    else if (question.QuestionType == "TrueFalse")
+                    {
+                        question.OptionA = "True";
+                        question.OptionB = "False";
+                        question.OptionC = null;
+                        question.OptionD = null;
+                    }
+                    else if (question.QuestionType == "Text")
+                    {
+                        question.OptionA = null;
+                        question.OptionB = null;
+                        question.OptionC = null;
+                        question.OptionD = null;
+                    }
+
+                    _context.FinalExamQuestions.Add(question);
+                    int changes = await _context.SaveChangesAsync();
+
+                    if (changes > 0)
+                    {
+                        _logger.LogInformation("FinalExamQuestion added with ID: {QuestionId}", question.FinalExamQuestionId);
+                        return RedirectToAction("ManageFinalExamQuestions", new { finalExamId = question.FinalExamId });
+                    }
+
+                    ModelState.AddModelError("", "لم يتم حفظ السؤال.");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error adding FinalExamQuestion for FinalExamId: {FinalExamId}", question.FinalExamId);
+                    ModelState.AddModelError("", $"خطأ أثناء إضافة السؤال: {ex.Message}");
+                }
+            }
+
+            return View(question);
+        }
+
+        // تعديل سؤال
+        [HttpGet]
+        public async Task<IActionResult> EditFinalExamQuestion(int id)
+        {
+            var question = await _context.FinalExamQuestions.FindAsync(id);
+            if (question == null)
+            {
+                return NotFound("السؤال غير موجود.");
+            }
+            return View(question);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> EditFinalExamQuestion(FinalExamQuestion question)
+        {
+            if (ModelState.IsValid)
+            {
+                _context.Update(question);
+                await _context.SaveChangesAsync();
+                return RedirectToAction("ManageFinalExamQuestions", new { finalExamId = question.FinalExamId });
+            }
+            return View(question);
+        }
+
+        // حذف سؤال
+        [HttpPost]
+        public async Task<IActionResult> DeleteFinalExamQuestion(int id)
+        {
+            var question = await _context.FinalExamQuestions.FindAsync(id);
+            if (question == null)
+            {
+                return NotFound("السؤال غير موجود.");
+            }
+
+            _context.FinalExamQuestions.Remove(question);
+            await _context.SaveChangesAsync();
+            return RedirectToAction("ManageFinalExamQuestions", new { finalExamId = question.FinalExamId });
+        }
+        [HttpGet]
+        public IActionResult ManageLessonNotes(int? courseId = null)
+        {
+            if (!IsAdminLoggedIn()) return RedirectToAction("Login", "Account");
+
+            // جلب جميع الدورات لعرضها في القائمة المنسدلة
+            var courses = _context.Courses
+                .Select(c => new { c.CourseId, c.Title })
+                .ToList();
+            ViewBag.Courses = new SelectList(courses, "CourseId", "Title", courseId);
+
+            // إذا لم يتم تمرير courseId أو كان غير صالح، نعرض الصفحة بدون دروس
+            if (!courseId.HasValue || courseId <= 0)
+            {
+                ViewBag.CourseId = null;
+                ViewBag.CourseTitle = "اختر دورة";
+                return View(new List<LessonNotesViewModel>());
+            }
+
+            var course = _context.Courses.Find(courseId);
+            if (course == null)
+            {
+                _logger.LogWarning("Course not found for courseId: {CourseId}", courseId);
+                ViewBag.CourseId = null;
+                ViewBag.CourseTitle = "الدورة غير موجودة";
+                return View(new List<LessonNotesViewModel>());
+            }
+
+            var lessons = _context.Lessons
+                .Where(l => l.CourseId == courseId)
+                .Select(l => new LessonNotesViewModel
+                {
+                    LessonId = l.LessonId,
+                    Title = l.Title ?? "درس بدون عنوان",
+                    Notes = l.LessonNotes.ToList()
+                })
+                .ToList();
+
+            ViewBag.CourseId = courseId;
+            ViewBag.CourseTitle = course.Title;
+            return View(lessons);
+        }
+
+        // دالة مساعدة لجلب الدروس بناءً على courseId (للاستخدام مع AJAX)
+        [HttpGet]
+        public IActionResult GetLessonsForCourse(int courseId)
+        {
+            var lessons = _context.Lessons
+                .Where(l => l.CourseId == courseId)
+                .Select(l => new { l.LessonId, l.Title })
+                .ToList();
+
+            return Json(lessons);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> UploadLessonNote(int courseId, int lessonId, IFormFile file)
+        {
+            if (!IsAdminLoggedIn()) return RedirectToAction("Login", "Account");
+
+            var lesson = await _context.Lessons.FindAsync(lessonId);
+            if (lesson == null || lesson.CourseId != courseId)
+            {
+                _logger.LogWarning("Invalid lessonId {LessonId} for courseId {CourseId}", lessonId, courseId);
+                return BadRequest("الدرس غير موجود أو لا ينتمي إلى الدورة المحددة.");
+            }
+
+            var userId = HttpContext.Session.GetInt32("UserId").Value;
+            var path = Path.Combine(_env.WebRootPath, "notes", $"{lessonId}_{DateTime.Now.Ticks}_{file.FileName}");
+            Directory.CreateDirectory(Path.GetDirectoryName(path));
+
+            using (var stream = new FileStream(path, FileMode.Create))
+            {
+                await file.CopyToAsync(stream);
+            }
+
+            var note = new LessonNote
+            {
+                LessonId = lessonId,
+                FileUrl = $"/notes/{Path.GetFileName(path)}",
+                UploadDate = DateTime.Now,
+                UploadedByUserId = userId
+            };
+            _context.LessonNotes.Add(note);
+            await _context.SaveChangesAsync();
+
+            var enrolledStudents = _context.Enrollments
+                .Where(e => e.CourseId == courseId)
+                .Select(e => e.UserId)
+                .Distinct()
+                .ToList();
+
+            foreach (var studentId in enrolledStudents)
+            {
+                _context.Notifications.Add(new Notification
+                {
+                    UserId = studentId,
+                    Message = $"تم رفع مذكرة جديدة لدرس: {lesson.Title}",
+                    IsRead = false,
+                    CreatedAt = DateTime.Now
+                });
+            }
+            await _context.SaveChangesAsync();
+
+            TempData["SuccessMessage"] = "تم رفع المذكرة وإرسال الإشعارات.";
+            return RedirectToAction("ManageLessonNotes", new { courseId });
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> DeleteLessonNote(int lessonNoteId)
+        {
+            var note = await _context.LessonNotes.FindAsync(lessonNoteId);
+            if (note == null) return NotFound();
+
+            var filePath = Path.Combine(_env.WebRootPath, note.FileUrl.TrimStart('/'));
+            if (System.IO.File.Exists(filePath)) System.IO.File.Delete(filePath);
+
+            _context.LessonNotes.Remove(note);
+            await _context.SaveChangesAsync();
+
+            TempData["SuccessMessage"] = "تم حذف المذكرة.";
+            return RedirectToAction("ManageLessonNotes", new { courseId = _context.Lessons.Find(note.LessonId)?.CourseId });
+        }
+
     }
 
     // نماذج مساعدة للعرض

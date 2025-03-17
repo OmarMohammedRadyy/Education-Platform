@@ -7,6 +7,7 @@ namespace EducationPlatformN.Models
         public int LessonId { get; set; }
         public int CourseId { get; set; }
         public string Title { get; set; }
+        public virtual ICollection<LessonNote> LessonNotes { get; set; } = new List<LessonNote>();
         public string VideoUrl { get; set; }
         public int Duration { get; set; } // تغيير من string إلى int
         public Course Course { get; set; }

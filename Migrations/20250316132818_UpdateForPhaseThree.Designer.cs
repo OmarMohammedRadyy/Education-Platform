@@ -4,6 +4,7 @@ using EducationPlatformN.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace EducationPlatformN.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250316132818_UpdateForPhaseThree")]
+    partial class UpdateForPhaseThree
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -162,10 +165,8 @@ namespace EducationPlatformN.Migrations
                     b.Property<int>("CourseId")
                         .HasColumnType("int");
 
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
                     b.Property<string>("Title")
+                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("FinalExamId");
@@ -190,18 +191,6 @@ namespace EducationPlatformN.Migrations
                     b.Property<int>("FinalExamId")
                         .HasColumnType("int");
 
-                    b.Property<string>("OptionA")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("OptionB")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("OptionC")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("OptionD")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<string>("QuestionText")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -214,7 +203,7 @@ namespace EducationPlatformN.Migrations
 
                     b.HasIndex("FinalExamId");
 
-                    b.ToTable("FinalExamQuestions");
+                    b.ToTable("FinalExamQuestion");
                 });
 
             modelBuilder.Entity("EducationPlatformN.Models.FinalExamResult", b =>
@@ -226,6 +215,7 @@ namespace EducationPlatformN.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("FinalExamResultId"));
 
                     b.Property<string>("AnswersJson")
+                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("CompletionDate")
@@ -327,8 +317,7 @@ namespace EducationPlatformN.Migrations
 
                     b.Property<string>("Message")
                         .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("NotificationType")
                         .IsRequired()
@@ -620,7 +609,7 @@ namespace EducationPlatformN.Migrations
             modelBuilder.Entity("EducationPlatformN.Models.Enrollment", b =>
                 {
                     b.HasOne("EducationPlatformN.Models.Course", "Course")
-                        .WithMany("Enrollments")
+                        .WithMany()
                         .HasForeignKey("CourseId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -639,7 +628,7 @@ namespace EducationPlatformN.Migrations
             modelBuilder.Entity("EducationPlatformN.Models.FinalExam", b =>
                 {
                     b.HasOne("EducationPlatformN.Models.Course", "Course")
-                        .WithMany("FinalExams")
+                        .WithMany()
                         .HasForeignKey("CourseId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -650,7 +639,7 @@ namespace EducationPlatformN.Migrations
             modelBuilder.Entity("EducationPlatformN.Models.FinalExamQuestion", b =>
                 {
                     b.HasOne("EducationPlatformN.Models.FinalExam", "FinalExam")
-                        .WithMany("FinalExamQuestions")
+                        .WithMany("Questions")
                         .HasForeignKey("FinalExamId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -699,7 +688,7 @@ namespace EducationPlatformN.Migrations
                     b.HasOne("EducationPlatformN.Models.User", "UploadedBy")
                         .WithMany()
                         .HasForeignKey("UploadedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Lesson");
@@ -815,10 +804,6 @@ namespace EducationPlatformN.Migrations
 
                     b.Navigation("Certificates");
 
-                    b.Navigation("Enrollments");
-
-                    b.Navigation("FinalExams");
-
                     b.Navigation("Lessons");
 
                     b.Navigation("Payments");
@@ -828,9 +813,9 @@ namespace EducationPlatformN.Migrations
 
             modelBuilder.Entity("EducationPlatformN.Models.FinalExam", b =>
                 {
-                    b.Navigation("FinalExamQuestions");
-
                     b.Navigation("FinalExamResults");
+
+                    b.Navigation("Questions");
                 });
 
             modelBuilder.Entity("EducationPlatformN.Models.Lesson", b =>

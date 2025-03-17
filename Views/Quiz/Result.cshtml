@@ -1,0 +1,19 @@
+﻿@model EducationPlatformN.Models.FinalExamResult
+
+<div class="container mt-5 text-center">
+    <div class="card p-4" style="border-radius: 20px; box-shadow: 0 6px 12px rgba(0,0,0,0.2);">
+        <h1 class="display-4 mb-4">نتيجة الاختبار النهائي</h1>
+        <h3>دورة: @Model.FinalExam.Course.Title</h3>
+        <p class="lead">درجتك: <strong>@Model.Score%</strong></p>
+        <p>تاريخ الإكمال: @Model.CompletionDate.ToString("dd/MM/yyyy")</p>
+        @if (Model.Score >= 80)
+        {
+            <div class="alert alert-success mt-4">تهانينا! لقد نجحت في الاختبار.</div>
+        }
+        else
+        {
+            <div class="alert alert-warning mt-4">عذرًا، لم تحقق الدرجة المطلوبة. حاول مجددًا.</div>
+        }
+        <a asp-controller="Certificates" asp-action="Request" asp-route-courseId="@Model.FinalExam.CourseId" class="btn btn-primary mt-3">طلب الشهادة</a>
+    </div>
+</div>

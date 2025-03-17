@@ -1,0 +1,47 @@
+﻿@model EducationPlatformN.Models.FinalExamQuestion
+
+<h2>إضافة سؤال</h2>
+<form asp-action="AddFinalExamQuestion" method="post">
+    <input type="hidden" asp-for="FinalExamId" />
+    <div class="form-group">
+        <label asp-for="QuestionText" class="control-label"></label>
+        <input asp-for="QuestionText" class="form-control" />
+        <span asp-validation-for="QuestionText" class="text-danger"></span>
+    </div>
+    <div class="form-group">
+        <label asp-for="QuestionType" class="control-label"></label>
+        <select asp-for="QuestionType" class="form-control">
+            <option value="MultipleChoice">متعدد الخيارات</option>
+            <option value="TrueFalse">صح/خطأ</option>
+            <option value="Text">نصي</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <label asp-for="CorrectAnswer" class="control-label"></label>
+        <input asp-for="CorrectAnswer" class="form-control" />
+        <span asp-validation-for="CorrectAnswer" class="text-danger"></span>
+    </div>
+    <div class="form-group">
+        <label asp-for="OptionA" class="control-label"></label>
+        <input asp-for="OptionA" class="form-control" />
+    </div>
+    <div class="form-group">
+        <label asp-for="OptionB" class="control-label"></label>
+        <input asp-for="OptionB" class="form-control" />
+    </div>
+    <div class="form-group">
+        <label asp-for="OptionC" class="control-label"></label>
+        <input asp-for="OptionC" class="form-control" />
+    </div>
+    <div class="form-group">
+        <label asp-for="OptionD" class="control-label"></label>
+        <input asp-for="OptionD" class="form-control" />
+    </div>
+    <button type="submit" class="btn btn-primary">إضافة</button>
+</form>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}

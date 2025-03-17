@@ -1,0 +1,34 @@
+﻿@model EducationPlatformN.Controllers.QuizController.CertificateViewModel
+
+<h2>شهاداتي</h2>
+
+@if (Model.Certificates.Any())
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>اسم الدورة</th>
+                <th>تاريخ الإصدار</th>
+                <th>رابط الشهادة</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var certificate in Model.Certificates)
+            {
+                <tr>
+                    <td>@certificate.CourseTitle</td>
+                    <td>@certificate.IssuedDate.ToString("dd/MM/yyyy")</td>
+                    <td>
+                        <a href="@Url.Action("DownloadCertificate", "Quiz", new { fileName = certificate.CertificateFileName })" target="_blank">تحميل</a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+else
+{
+    <p>لا توجد شهادات حاليًا.</p>
+}
+
+<a asp-action="Index" asp-controller="Home" class="btn btn-secondary">العودة</a>

@@ -1,0 +1,29 @@
+﻿@model IEnumerable<EducationPlatformN.Models.FinalExamQuestion>
+
+<h2>إدارة أسئلة الاختبار: @ViewBag.FinalExamTitle</h2>
+<a asp-action="AddFinalExamQuestion" asp-route-finalExamId="@ViewBag.FinalExamId" class="btn btn-primary">إضافة سؤال</a>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>نص السؤال</th>
+            <th>النوع</th>
+            <th>الإجراءات</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var question in Model)
+        {
+            <tr>
+                <td>@question.QuestionText</td>
+                <td>@question.QuestionType</td>
+                <td>
+                    <a asp-action="EditFinalExamQuestion" asp-route-id="@question.FinalExamQuestionId" class="btn btn-warning">تعديل</a>
+                    <form asp-action="DeleteFinalExamQuestion" asp-route-id="@question.FinalExamQuestionId" method="post" style="display:inline;" onsubmit="return confirm('هل أنت متأكد؟');">
+                        <button type="submit" class="btn btn-danger">حذف</button>
+                    </form>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>

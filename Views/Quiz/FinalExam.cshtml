@@ -1,0 +1,69 @@
+﻿@model EducationPlatformN.Models.FinalExam
+
+<div class="container mt-5">
+    <h2 class="text-center mb-4">اختبار نهائي: @Model.Title</h2>
+    <form asp-action="SubmitFinalExam" method="post">
+        <input type="hidden" asp-for="FinalExamId" />
+        <div class="card">
+            <div class="card-body">
+                @foreach (var question in Model.FinalExamQuestions)
+                {
+                    <div class="mb-4">
+                        <h5>@question.QuestionText</h5>
+                        @if (question.QuestionType == "MultipleChoice")
+                        {
+                            <div class="form-check">
+                                <input type="radio" name="answers[@question.FinalExamQuestionId]" value="@question.OptionA" class="form-check-input" />
+                                <label class="form-check-label">@question.OptionA</label>
+                            </div>
+                            <div class="form-check">
+                                <input type="radio" name="answers[@question.FinalExamQuestionId]" value="@question.OptionB" class="form-check-input" />
+                                <label class="form-check-label">@question.OptionB</label>
+                            </div>
+                            <div class="form-check">
+                                <input type="radio" name="answers[@question.FinalExamQuestionId]" value="@question.OptionC" class="form-check-input" />
+                                <label class="form-check-label">@question.OptionC</label>
+                            </div>
+                            <div class="form-check">
+                                <input type="radio" name="answers[@question.FinalExamQuestionId]" value="@question.OptionD" class="form-check-input" />
+                                <label class="form-check-label">@question.OptionD</label>
+                            </div>
+                        }
+                        else if (question.QuestionType == "TrueFalse")
+                        {
+                            <div class="form-check">
+                                <input type="radio" name="answers[@question.FinalExamQuestionId]" value="True" class="form-check-input" />
+                                <label class="form-check-label">صح</label>
+                            </div>
+                            <div class="form-check">
+                                <input type="radio" name="answers[@question.FinalExamQuestionId]" value="False" class="form-check-input" />
+                                <label class="form-check-label">خطأ</label>
+                            </div>
+                        }
+                        else
+                        {
+                            <input type="text" name="answers[@question.FinalExamQuestionId]" class="form-control" />
+                        }
+                    </div>
+                }
+                <button type="submit" class="btn btn-success btn-lg">إرسال الاختبار</button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<style>
+    .card {
+        border-radius: 15px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+
+    h5 {
+        color: #333;
+    }
+
+    .btn-success {
+        background-color: #28a745;
+        border: none;
+    }
+</style>

@@ -28,9 +28,11 @@ namespace EducationPlatformN.Models
 
         public virtual User Teacher { get; set; } // العلاقة مع Teacher
         public List<Lesson> Lessons { get; set; } = new List<Lesson>();
-        public List<Payment> Payments { get; set; } = new List<Payment>();
         public List<StudentProgress> StudentProgress { get; set; } = new List<StudentProgress>();
-        public List<CertificateCondition> CertificateConditions { get; set; } = new List<CertificateCondition>();
-        public List<Certificate> Certificates { get; set; } = new List<Certificate>();
+        public virtual ICollection<Payment> Payments { get; set; } = new List<Payment>();
+        public virtual ICollection<Certificate> Certificates { get; set; } = new List<Certificate>();
+        public virtual ICollection<CertificateCondition> CertificateConditions { get; set; } = new List<CertificateCondition>();
+        public virtual ICollection<Enrollment> Enrollments { get; set; } = new List<Enrollment>();
+        public virtual ICollection<FinalExam> FinalExams { get; set; } = new List<FinalExam>();
     }
 }

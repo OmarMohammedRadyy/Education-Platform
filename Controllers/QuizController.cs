@@ -5,10 +5,12 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using QuestPDF.Fluent;
+using Microsoft.AspNetCore.Hosting;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
+using EducationPlatformN.Services;
 
 namespace EducationPlatformN.Controllers
 {
@@ -16,11 +18,13 @@ namespace EducationPlatformN.Controllers
     {
         private readonly AppDbContext _context;
         private readonly IWebHostEnvironment _env;
+        private readonly ICertificateService _certificateService;
 
-        public QuizController(AppDbContext context, IWebHostEnvironment env)
+        public QuizController(AppDbContext context, IWebHostEnvironment env, ICertificateService certificateService)
         {
             _context = context ?? throw new ArgumentNullException(nameof(context));
             _env = env ?? throw new ArgumentNullException(nameof(env));
+            _certificateService = certificateService ?? throw new ArgumentNullException(nameof(certificateService));
         }
 
         [HttpGet]
@@ -46,17 +50,13 @@ namespace EducationPlatformN.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult SubmitQuiz(int lessonId, Dictionary<int, string> answers)
+        public async Task<IActionResult> SubmitQuiz(int lessonId, Dictionary<int, string> answers)
         {
-            if (HttpContext.Session.GetInt32("UserId") == null)
-            {
-                return RedirectToAction("Login", "Account");
-            }
-
             var userId = HttpContext.Session.GetInt32("UserId").Value;
             var questions = _context.Questions.Where(q => q.LessonId == lessonId).ToList();
+            var lesson = await _context.Lessons.FindAsync(lessonId);
+            var courseId = lesson?.CourseId ?? 0;
 
-            // تسجيل الإجابات
             foreach (var answer in answers)
             {
                 var question = questions.FirstOrDefault(q => q.QuestionId == answer.Key);
@@ -71,34 +71,18 @@ namespace EducationPlatformN.Controllers
                     });
                 }
             }
-            _context.SaveChanges();
+            await _context.SaveChangesAsync();
 
-            // حساب الدرجة بناءً على نوع السؤال
             var userAnswers = _context.UserAnswers
                 .Include(ua => ua.Question)
                 .Where(ua => ua.UserId == userId && questions.Select(q => q.QuestionId).Contains(ua.QuestionId))
                 .ToList();
 
-            int correctAnswers = 0;
-            foreach (var ua in userAnswers)
-            {
-                switch (ua.Question.QuestionType)
-                {
-                    case "MultipleChoice":
-                    case "TrueFalse":
-                        if (ua.SelectedAnswer == ua.Question.CorrectAnswer)
-                            correctAnswers++;
-                        break;
-                    case "Text":
-                        if (ua.SelectedAnswer.Trim().ToLower() == ua.Question.CorrectAnswer.Trim().ToLower())
-                            correctAnswers++;
-                        break;
-                }
-            }
+            int correctAnswers = userAnswers.Count(ua => ua.Question.QuestionType == "Text"
+                ? ua.SelectedAnswer.Trim().ToLower() == ua.Question.CorrectAnswer.Trim().ToLower()
+                : ua.SelectedAnswer == ua.Question.CorrectAnswer);
 
             var score = (double)correctAnswers / questions.Count * 100;
-
-            // تسجيل النتيجة
             var quizResult = new QuizResult
             {
                 UserId = userId,
@@ -108,24 +92,71 @@ namespace EducationPlatformN.Controllers
                 AnswersJson = JsonConvert.SerializeObject(answers)
             };
             _context.QuizResults.Add(quizResult);
-            _context.SaveChanges();
+            await _context.SaveChangesAsync();
 
+            var lessonCount = _context.Lessons.Count(l => l.CourseId == courseId);
+            var completedLessons = _context.QuizResults.Count(qr => qr.UserId == userId && qr.Lesson.CourseId == courseId);
+            var progress = (double)completedLessons / lessonCount * 100;
 
-
+            TempData["SuccessMessage"] = $"تهانينا! أكملت الاختبار بنتيجة {score:F2}%. تقدمك: {progress:F2}%";
             return RedirectToAction("QuizResults", new { lessonId });
         }
 
-        private bool CheckQuizSuccess(int userId, int lessonId)
-        {
-            var questions = _context.Questions.Where(q => q.LessonId == lessonId).ToList();
-            var userAnswers = _context.UserAnswers
-                .Where(ua => ua.UserId == userId && questions.Select(q => q.QuestionId).Contains(ua.QuestionId))
-                .ToList();
-
-            return userAnswers.Count(ua => ua.SelectedAnswer == ua.Question.CorrectAnswer) >= questions.Count * 0.7;
-        }
         [HttpGet]
         public IActionResult QuizResults(int lessonId)
+        {
+            var userId = HttpContext.Session.GetInt32("UserId").Value;
+            var latestResult = _context.QuizResults
+                .Include(qr => qr.Lesson)
+                .ThenInclude(l => l.Questions)
+                .Where(qr => qr.UserId == userId && qr.LessonId == lessonId)
+                .OrderByDescending(qr => qr.CompletionDate)
+                .FirstOrDefault();
+
+            if (latestResult == null) return NotFound();
+
+            var viewModel = new QuizResultViewModel
+            {
+                LessonTitle = latestResult.Lesson.Title,
+                Score = latestResult.Score,
+                CompletionDate = latestResult.CompletionDate,
+                Answers = _context.UserAnswers
+                    .Include(ua => ua.Question)
+                    .Where(ua => ua.UserId == userId && ua.Question.LessonId == lessonId)
+                    .OrderByDescending(ua => ua.AnsweredAt)
+                    .Take(latestResult.Lesson.Questions.Count)
+                    .Select(ua => new AnswerDetail
+                    {
+                        LessonId = ua.Question.LessonId,
+                        QuestionId = ua.QuestionId.ToString(),
+                        QuestionText = ua.Question.QuestionText,
+                        SelectedAnswer = ua.SelectedAnswer,
+                        CorrectAnswer = ua.Question.CorrectAnswer,
+                        IsCorrect = ua.Question.QuestionType == "Text"
+                            ? ua.SelectedAnswer.Trim().ToLower() == ua.Question.CorrectAnswer.Trim().ToLower()
+                            : ua.SelectedAnswer == ua.Question.CorrectAnswer
+                    }).ToList()
+            };
+
+            ViewBag.AttemptHistoryUrl = Url.Action("QuizAttemptHistory", new { lessonId });
+            return View(viewModel);
+        }
+
+        [HttpGet]
+        public IActionResult QuizAttemptHistory(int lessonId)
+        {
+            var userId = HttpContext.Session.GetInt32("UserId").Value;
+            var attempts = _context.QuizResults
+                .Where(qr => qr.UserId == userId && qr.LessonId == lessonId)
+                .OrderByDescending(qr => qr.CompletionDate)
+                .Select(qr => new { qr.Score, qr.CompletionDate })
+                .ToList();
+
+            return View(attempts);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> Dashboard(int courseId, string filterLessonTitle = null, DateTime? filterStartDate = null, DateTime? filterEndDate = null, double? filterMinScore = null)
         {
             if (HttpContext.Session.GetInt32("UserId") == null)
             {
@@ -133,51 +164,189 @@ namespace EducationPlatformN.Controllers
             }
 
             var userId = HttpContext.Session.GetInt32("UserId").Value;
-            var quizResult = _context.QuizResults
-                .Include(qr => qr.Lesson)
-                .ThenInclude(l => l.Questions)
-                .FirstOrDefault(qr => qr.UserId == userId && qr.LessonId == lessonId);
+            var course = await _context.Courses.FindAsync(courseId);
+            if (course == null) return NotFound("الدورة غير موجودة.");
 
-            if (quizResult == null)
+            var lessons = _context.Lessons.Where(l => l.CourseId == courseId).ToList();
+            var quizResultsQuery = _context.QuizResults
+                .Where(qr => qr.UserId == userId && qr.Lesson.CourseId == courseId);
+
+            if (!string.IsNullOrEmpty(filterLessonTitle))
             {
-                return NotFound("لم يتم العثور على نتيجة اختبار لهذا الدرس.");
+                quizResultsQuery = quizResultsQuery.Where(qr => qr.Lesson.Title.Contains(filterLessonTitle));
+            }
+            if (filterStartDate.HasValue)
+            {
+                quizResultsQuery = quizResultsQuery.Where(qr => qr.CompletionDate >= filterStartDate.Value);
+            }
+            if (filterEndDate.HasValue)
+            {
+                quizResultsQuery = quizResultsQuery.Where(qr => qr.CompletionDate <= filterEndDate.Value);
+            }
+            if (filterMinScore.HasValue)
+            {
+                quizResultsQuery = quizResultsQuery.Where(qr => qr.Score >= filterMinScore.Value);
             }
 
-            var userAnswers = _context.UserAnswers
-                .Include(ua => ua.Question)
-                .Where(ua => ua.UserId == userId && ua.Question.LessonId == lessonId)
-                .ToList();
+            var quizResults = quizResultsQuery.ToList();
+            var certificates = await _certificateService.GetUserCertificatesAsync(userId);
 
-            var viewModel = new QuizResultViewModel
+            var viewModel = new StudentDashboardViewModel
             {
-                LessonTitle = quizResult.Lesson.Title,
-                Score = quizResult.Score,
-                CompletionDate = quizResult.CompletionDate,
-                Answers = userAnswers.Select(ua => new AnswerDetail
+                CourseProgress = lessons.Any() ? (double)_context.QuizResults.Count(qr => qr.UserId == userId && qr.Lesson.CourseId == courseId) / lessons.Count * 100 : 0,
+                Lessons = lessons.Select(l => new LessonProgress
                 {
-                    LessonId = ua.Question.LessonId, // إضافة LessonId إلى AnswerDetail
-                    QuestionId = ua.QuestionId.ToString(), // تحويل QuestionId إلى سلسلة نصية
-                    QuestionText = ua.Question.QuestionText,
-                    SelectedAnswer = ua.SelectedAnswer,
-                    CorrectAnswer = ua.Question.CorrectAnswer,
-                    IsCorrect = ua.Question.QuestionType == "Text"
-                        ? ua.SelectedAnswer.Trim().ToLower() == ua.Question.CorrectAnswer.Trim().ToLower()
-                        : ua.SelectedAnswer == ua.Question.CorrectAnswer
-                }).ToList()
+                    LessonId = l.LessonId,
+                    LessonTitle = l.Title,
+                    Score = _context.QuizResults.Where(qr => qr.LessonId == l.LessonId && qr.UserId == userId)
+                        .OrderByDescending(qr => qr.CompletionDate)
+                        .FirstOrDefault()?.Score ?? 0,
+                    AttemptCount = _context.QuizResults.Count(qr => qr.LessonId == l.LessonId && qr.UserId == userId)
+                }).ToList(),
+                QuizHistory = quizResults.Select(qr => new QuizAttempt
+                {
+                    LessonId = qr.LessonId,
+                    LessonTitle = qr.Lesson.Title,
+                    Score = qr.Score,
+                    CompletionDate = qr.CompletionDate
+                }).OrderByDescending(q => q.CompletionDate).ToList(),
+                Certificates = certificates.Select(c => new CertificateDisplayModel
+                {
+                    CourseTitle = c.Course.Title,
+                    IssuedDate = c.IssuedDate,
+                    CertificateFileName = c.CertificateUrl.Split('/').Last()
+                }).ToList(),
+                Notes = _context.LessonNotes.Where(n => n.Lesson.CourseId == courseId).ToList(),
+                FilterLessonTitle = filterLessonTitle,
+                FilterStartDate = filterStartDate,
+                FilterEndDate = filterEndDate,
+                FilterMinScore = filterMinScore
             };
 
-            // تمرير lessonId واستخراج courseId
-            ViewBag.LessonId = lessonId;
-            var courseId = _context.Lessons.FirstOrDefault(l => l.LessonId == lessonId)?.CourseId ?? 0;
-            ViewBag.CourseId = courseId;
-
-            ViewBag.IsLoggedIn = true;
-            ViewBag.IsAdmin = HttpContext.Session.GetString("Role") == "Admin";
-            ViewBag.UnreadNotifications = _context.Notifications.Count(n => n.UserId == userId && !n.IsRead);
-            ViewBag.UserId = userId;
+            ViewBag.Notifications = _context.Notifications
+                .Where(n => n.UserId == userId && !n.IsRead)
+                .OrderByDescending(n => n.CreatedAt)
+                .ToList();
 
             return View(viewModel);
         }
+
+        [HttpGet]
+        public async Task<IActionResult> Certificates()
+        {
+            if (HttpContext.Session.GetInt32("UserId") == null)
+            {
+                return RedirectToAction("Login", "Account");
+            }
+
+            var userId = HttpContext.Session.GetInt32("UserId").Value;
+            var certificates = await _certificateService.GetUserCertificatesAsync(userId);
+
+            var viewModel = new CertificateViewModel
+            {
+                Certificates = certificates.Select(c => new CertificateDisplayModel
+                {
+                    CourseTitle = c.Course.Title,
+                    IssuedDate = c.IssuedDate,
+                    CertificateFileName = Path.GetFileName(c.CertificateUrl)
+                }).ToList(),
+                IsLoggedIn = true,
+                IsAdmin = HttpContext.Session.GetString("Role") == "Admin",
+                UnreadNotifications = _context.Notifications.Count(n => n.UserId == userId && !n.IsRead)
+            };
+
+            return View(viewModel);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> FinalExam(int courseId)
+        {
+            var enrollment = await _context.Enrollments
+                .FirstOrDefaultAsync(e => e.UserId == int.Parse(User.FindFirst("UserId").Value) && e.CourseId == courseId);
+
+            if (enrollment == null)
+            {
+                return Unauthorized("غير مسجل في هذه الدورة.");
+            }
+
+            var progress = await _context.StudentProgress
+                .Where(sp => sp.StudentId == enrollment.UserId && sp.Lesson.CourseId == courseId)
+                .ToListAsync();
+
+            var totalLessons = await _context.Lessons.CountAsync(l => l.CourseId == courseId);
+            var completedLessons = progress.Count(sp => sp.ProgressPercentage >= 100);
+
+            if (completedLessons < totalLessons)
+            {
+                return RedirectToAction("Dashboard", new { message = "يجب إكمال جميع الدروس أولاً." });
+            }
+
+            var finalExam = await _context.FinalExams
+                .Include(fe => fe.FinalExamQuestions)
+                .FirstOrDefaultAsync(fe => fe.CourseId == courseId);
+
+            if (finalExam == null)
+            {
+                return NotFound("لا يوجد اختبار نهائي لهذه الدورة بعد.");
+            }
+
+            return View(finalExam);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> SubmitFinalExam(int finalExamId, Dictionary<int, string> answers)
+        {
+            var finalExam = await _context.FinalExams
+                .Include(fe => fe.FinalExamQuestions)
+                .FirstOrDefaultAsync(fe => fe.FinalExamId == finalExamId);
+
+            if (finalExam == null)
+            {
+                return NotFound("الاختبار غير موجود.");
+            }
+
+            double score = 0;
+            foreach (var question in finalExam.FinalExamQuestions)
+            {
+                if (answers.TryGetValue(question.FinalExamQuestionId, out var studentAnswer) &&
+                    studentAnswer == question.CorrectAnswer)
+                {
+                    score += 1;
+                }
+            }
+            score = (score / finalExam.FinalExamQuestions.Count) * 100;
+
+            var result = new FinalExamResult
+            {
+                UserId = int.Parse(User.FindFirst("UserId").Value),
+                FinalExamId = finalExamId,
+                Score = score,
+                CompletionDate = DateTime.Now,
+                AnswersJson = JsonConvert.SerializeObject(answers) // تصحيح لاستخدام Newtonsoft.Json
+            };
+
+            _context.FinalExamResults.Add(result);
+            await _context.SaveChangesAsync();
+
+            return RedirectToAction("Result", new { resultId = result.FinalExamResultId });
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> Result(int resultId)
+        {
+            var result = await _context.FinalExamResults
+                .Include(r => r.FinalExam)
+                .ThenInclude(fe => fe.Course)
+                .FirstOrDefaultAsync(r => r.FinalExamResultId == resultId && r.UserId == int.Parse(User.FindFirst("UserId").Value));
+
+            if (result == null)
+            {
+                return NotFound("النتيجة غير موجودة.");
+            }
+
+            return View(result);
+        }
+
 
         public class QuizResultViewModel
         {
@@ -186,7 +355,6 @@ namespace EducationPlatformN.Controllers
             public DateTime CompletionDate { get; set; }
             public List<AnswerDetail> Answers { get; set; }
         }
-
         public class AnswerDetail
         {
             public int LessonId { get; set; }
@@ -196,37 +364,13 @@ namespace EducationPlatformN.Controllers
             public string CorrectAnswer { get; set; }
             public bool IsCorrect { get; set; }
         }
-        // ... (باقي الدوال مثل IssueCertificate و GenerateCertificatePdf بدون تغيير بعد)
-        private bool CheckCourseCompletion(int userId, int courseId)
+        public class CertificateViewModel
         {
-            var lessons = _context.Lessons.Where(l => l.CourseId == courseId).ToList();
-            var quizResults = _context.QuizResults
-                .Where(qr => qr.UserId == userId && lessons.Select(l => l.LessonId).Contains(qr.LessonId))
-                .ToList();
-
-            // الحصول على الشروط من قاعدة البيانات
-            var passPercentage = _context.CertificateConditions
-                .FirstOrDefault(c => c.ConditionType == "PassPercentage")?.Value ?? 70m; // استخدام 70m كـ decimal
-            var maxAttempts = _context.CertificateConditions
-                .FirstOrDefault(c => c.ConditionType == "MaxAttempts")?.Value ?? 3m; // استخدام 3m كـ decimal
-
-            // تحويل passPercentage إلى double للمقارنة مع Score
-            double passPercentageDouble = (double)passPercentage;
-
-            // التحقق من إكمال جميع الدروس بنسبة النجاح
-            var completedLessons = lessons.Count(l => quizResults.Any(qr => qr.LessonId == l.LessonId && qr.Score >= passPercentageDouble));
-
-            // التحقق من عدد المحاولات (افتراضي: لا يزيد عن maxAttempts لكل درس)
-            var attemptCount = _context.QuizResults
-                .Where(qr => qr.UserId == userId && lessons.Select(l => l.LessonId).Contains(qr.LessonId))
-                .GroupBy(qr => qr.LessonId)
-                .Select(g => new { LessonId = g.Key, Count = g.Count() })
-                .All(g => g.Count <= (int)maxAttempts); // تحويل maxAttempts إلى int
-
-            return lessons.Count == completedLessons && attemptCount;
+            public List<CertificateDisplayModel> Certificates { get; set; }
+            public bool IsLoggedIn { get; set; }
+            public bool IsAdmin { get; set; }
+            public int UnreadNotifications { get; set; }
         }
-
-
         private string GenerateCertificatePdf(int userId, int courseId)
         {
             QuestPDF.Settings.License = LicenseType.Community;
@@ -294,5 +438,15 @@ namespace EducationPlatformN.Controllers
             return $"/certificates/{fileName}";
         }
 
-    }   
+        [HttpGet]
+        public IActionResult DownloadCertificate(string fileName)
+        {
+            var filePath = Path.Combine(_env.WebRootPath, "certificates", fileName);
+            if (!System.IO.File.Exists(filePath))
+                return NotFound($"الملف {fileName} غير موجود في {filePath}");
+
+            var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
+            return File(fileStream, "application/pdf", fileName);
+        }
+    }
 }

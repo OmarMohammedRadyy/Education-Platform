@@ -30,12 +30,14 @@ namespace EducationPlatformN.Models
         [Required]
         public string Language { get; set; } = "ar"; // قيمة افتراضية
 
-        public List<Course> Courses { get; set; } = new List<Course>(); // للمدرسين
-        public List<Payment> Payments { get; set; } = new List<Payment>();
-        public List<UserAnswer> UserAnswers { get; set; } = new List<UserAnswer>();
-        public List<Notification> Notifications { get; set; } = new List<Notification>();
-        public List<QuizResult> QuizResults { get; set; } = new List<QuizResult>();
-        public List<StudentProgress> StudentProgress { get; set; } = new List<StudentProgress>();
-        public List<Certificate> Certificates { get; set; } = new List<Certificate>();
+        public virtual ICollection<Course> Courses { get; set; } = new List<Course>(); // كمعلم
+        public virtual ICollection<Payment> Payments { get; set; } = new List<Payment>();
+        public virtual ICollection<UserAnswer> UserAnswers { get; set; } = new List<UserAnswer>();
+        public virtual ICollection<QuizResult> QuizResults { get; set; } = new List<QuizResult>();
+        public virtual ICollection<StudentProgress> StudentProgress { get; set; } = new List<StudentProgress>();
+        public virtual ICollection<Certificate> Certificates { get; set; } = new List<Certificate>();
+        public virtual ICollection<Notification> Notifications { get; set; } = new List<Notification>();
+        public virtual ICollection<Enrollment> Enrollments { get; set; } = new List<Enrollment>();
+        public virtual ICollection<FinalExamResult> FinalExamResults { get; set; } = new List<FinalExamResult>();
     }
 }

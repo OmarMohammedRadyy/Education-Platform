@@ -13,6 +13,11 @@ namespace EducationPlatformN.Models
         public DbSet<CertificateCondition> CertificateConditions { get; set; }
         public DbSet<StudentProgress> StudentProgress { get; set; }
         public DbSet<Question> Questions { get; set; }
+        public DbSet<Enrollment> Enrollments { get; set; }
+        public DbSet<FinalExam> FinalExams { get; set; }
+        public DbSet<FinalExamResult> FinalExamResults { get; set; }
+        public DbSet<FinalExamQuestion> FinalExamQuestions { get; set; }
+        public DbSet<LessonNote> LessonNotes { get; set; }
         public DbSet<UserAnswer> UserAnswers { get; set; }
         public DbSet<Certificate> Certificates { get; set; }
         public DbSet<Notification> Notifications { get; set; }
@@ -20,160 +25,133 @@ namespace EducationPlatformN.Models
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            // StudentProgress
-            modelBuilder.Entity<StudentProgress>()
-                .HasKey(sp => sp.ProgressId);
-            modelBuilder.Entity<StudentProgress>()
-                .HasOne(sp => sp.Student)
-                .WithMany(u => u.StudentProgress) // ربط مع قائمة في User
-                .HasForeignKey(sp => sp.StudentId)
-                .OnDelete(DeleteBehavior.Cascade);
-            modelBuilder.Entity<StudentProgress>()
-                .HasOne(sp => sp.Lesson)
-                .WithMany(l => l.StudentProgress) // ربط مع قائمة في Lesson
-                .HasForeignKey(sp => sp.LessonId)
-                .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<User>(entity =>
+            {
+                entity.HasKey(u => u.UserId);
+                entity.Property(u => u.PasswordHash).IsRequired();
+                entity.HasMany(u => u.Courses).WithOne(c => c.Teacher).HasForeignKey(c => c.TeacherId).IsRequired(false).OnDelete(DeleteBehavior.Restrict);
+                entity.HasMany(u => u.Payments).WithOne(p => p.User).HasForeignKey(p => p.UserId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasMany(u => u.UserAnswers).WithOne(ua => ua.User).HasForeignKey(ua => ua.UserId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasMany(u => u.QuizResults).WithOne(qr => qr.User).HasForeignKey(qr => qr.UserId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasMany(u => u.StudentProgress).WithOne(sp => sp.Student).HasForeignKey(sp => sp.StudentId).OnDelete(DeleteBehavior.Cascade);
+                entity.HasMany(u => u.Certificates).WithOne(c => c.Student).HasForeignKey(c => c.StudentId).OnDelete(DeleteBehavior.Cascade);
+                entity.HasMany(u => u.Notifications).WithOne(n => n.User).HasForeignKey(n => n.UserId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasMany(u => u.Enrollments).WithOne(e => e.User).HasForeignKey(e => e.UserId).OnDelete(DeleteBehavior.Cascade);
+                entity.HasMany(u => u.FinalExamResults).WithOne(fer => fer.User).HasForeignKey(fer => fer.UserId).OnDelete(DeleteBehavior.Cascade);
+            });
 
-            // Course و Teacher (اختيارية)
-            modelBuilder.Entity<Course>()
-                .HasOne(c => c.Teacher)
-                .WithMany(u => u.Courses)
-                .HasForeignKey(c => c.TeacherId)
-                .IsRequired(false)
-                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<Course>(entity =>
+            {
+                entity.HasKey(c => c.CourseId);
+                entity.Property(c => c.Price).HasColumnType("decimal(10,2)");
+                entity.Property(c => c.IntroVideoUrl).IsRequired(false);
+                entity.HasMany(c => c.Lessons).WithOne(l => l.Course).HasForeignKey(l => l.CourseId).OnDelete(DeleteBehavior.Cascade);
+                entity.HasMany(c => c.Payments).WithOne(p => p.Course).HasForeignKey(p => p.CourseId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasMany(c => c.Certificates).WithOne(c => c.Course).HasForeignKey(c => c.CourseId).OnDelete(DeleteBehavior.Cascade);
+                entity.HasMany(c => c.CertificateConditions).WithOne(cc => cc.Course).HasForeignKey(cc => cc.CourseId).IsRequired(false).OnDelete(DeleteBehavior.Cascade);
+                entity.HasMany(c => c.Enrollments).WithOne(e => e.Course).HasForeignKey(e => e.CourseId).OnDelete(DeleteBehavior.Cascade);
+                entity.HasMany(c => c.FinalExams).WithOne(fe => fe.Course).HasForeignKey(fe => fe.CourseId).OnDelete(DeleteBehavior.Cascade);
+            });
 
-            // Payment و User
-            modelBuilder.Entity<Payment>()
-                .HasOne(p => p.User)
-                .WithMany(u => u.Payments)
-                .HasForeignKey(p => p.UserId)
-                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<Lesson>(entity =>
+            {
+                entity.HasKey(l => l.LessonId);
+                entity.HasMany(l => l.Questions).WithOne(q => q.Lesson).HasForeignKey(q => q.LessonId).OnDelete(DeleteBehavior.Cascade);
+                entity.HasMany(l => l.QuizResults).WithOne(qr => qr.Lesson).HasForeignKey(qr => qr.LessonId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasMany(l => l.StudentProgress).WithOne(sp => sp.Lesson).HasForeignKey(sp => sp.LessonId).OnDelete(DeleteBehavior.Cascade);
+                entity.HasMany(l => l.LessonNotes).WithOne(ln => ln.Lesson).HasForeignKey(ln => ln.LessonId).OnDelete(DeleteBehavior.Cascade);
+            });
 
-            // Payment و Course
-            modelBuilder.Entity<Payment>()
-                .HasOne(p => p.Course)
-                .WithMany(c => c.Payments)
-                .HasForeignKey(p => p.CourseId)
-                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<Payment>(entity =>
+            {
+                entity.HasKey(p => p.PaymentId);
+                entity.Property(p => p.Amount).HasColumnType("decimal(10,2)");
+            });
 
-            // Lesson و Course
-            modelBuilder.Entity<Lesson>()
-                .HasOne(l => l.Course)
-                .WithMany(c => c.Lessons)
-                .HasForeignKey(l => l.CourseId)
-                .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<Question>(entity =>
+            {
+                entity.HasKey(q => q.QuestionId);
+                entity.Property(q => q.OptionA).IsRequired(false);
+                entity.Property(q => q.OptionB).IsRequired(false);
+                entity.Property(q => q.OptionC).IsRequired(false);
+                entity.Property(q => q.OptionD).IsRequired(false);
+                entity.HasMany(q => q.UserAnswers).WithOne(ua => ua.Question).HasForeignKey(ua => ua.QuestionId).OnDelete(DeleteBehavior.Restrict);
+            });
 
-            // Question و Lesson
-            modelBuilder.Entity<Question>()
-                .HasOne(q => q.Lesson)
-                .WithMany(l => l.Questions)
-                .HasForeignKey(q => q.LessonId)
-                .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<UserAnswer>(entity =>
+            {
+                entity.HasKey(ua => ua.UserAnswerId);
+            });
 
-            // UserAnswer و User
-            modelBuilder.Entity<UserAnswer>()
-                .HasOne(ua => ua.User)
-                .WithMany(u => u.UserAnswers)
-                .HasForeignKey(ua => ua.UserId)
-                .OnDelete(DeleteBehavior.Restrict);
-            modelBuilder.Entity<Question>()
-    .Property(q => q.OptionA)
-    .IsRequired(false);
-            modelBuilder.Entity<Question>()
-                .Property(q => q.OptionB)
-                .IsRequired(false);
-            modelBuilder.Entity<Question>()
-                .Property(q => q.OptionC)
-                .IsRequired(false);
-            modelBuilder.Entity<Question>()
-                .Property(q => q.OptionD)
-                .IsRequired(false);
-            // UserAnswer و Question
-            modelBuilder.Entity<UserAnswer>()
-                .HasOne(ua => ua.Question)
-                .WithMany(q => q.UserAnswers)
-                .HasForeignKey(ua => ua.QuestionId)
-                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<QuizResult>(entity =>
+            {
+                entity.HasKey(qr => qr.QuizResultId);
+                entity.Property(qr => qr.AnswersJson).HasColumnType("nvarchar(max)").IsRequired();
+                entity.Property(qr => qr.Score).HasColumnType("float");
+            });
 
-            // Certificate و User (Student)
-            modelBuilder.Entity<Certificate>()
-                .HasKey(c => c.CertificateId);
-            modelBuilder.Entity<Certificate>()
-                .HasOne(c => c.Student)
-                .WithMany(u => u.Certificates) // ربط مع قائمة في User
-                .HasForeignKey(c => c.StudentId)
-                .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<Certificate>(entity =>
+            {
+                entity.HasKey(c => c.CertificateId);
+            });
 
-            // Certificate و Course
-            modelBuilder.Entity<Certificate>()
-                .HasOne(c => c.Course)
-                .WithMany(c => c.Certificates) // ربط مع قائمة في Course
-                .HasForeignKey(c => c.CourseId)
-                .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<CertificateCondition>(entity =>
+            {
+                entity.HasKey(cc => cc.ConditionId);
+                entity.Property(cc => cc.Value).HasPrecision(5, 2);
+            });
 
-            // CertificateCondition و Course
-            modelBuilder.Entity<CertificateCondition>()
-                .HasKey(cc => cc.ConditionId);
-            modelBuilder.Entity<CertificateCondition>()
-    .HasOne(cc => cc.Course)
-    .WithMany(c => c.CertificateConditions)
-    .HasForeignKey(cc => cc.CourseId)
-    .IsRequired(false) // جعل العلاقة اختيارية
-    .OnDelete(DeleteBehavior.Cascade);
-            modelBuilder.Entity<CertificateCondition>()
-                .Property(cc => cc.Value)
-                .HasPrecision(5, 2); // دقة 5 أرقام، 2 بعد الفاصلة (مثل 100.00)
+            modelBuilder.Entity<StudentProgress>(entity =>
+            {
+                entity.HasKey(sp => sp.ProgressId);
+                entity.Property(sp => sp.ProgressPercentage).HasColumnType("float").IsRequired();
+            });
 
-            // Notification و User
-            modelBuilder.Entity<Notification>()
-                .HasOne(n => n.User)
-                .WithMany(u => u.Notifications)
-                .HasForeignKey(n => n.UserId)
-                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<Enrollment>(entity =>
+            {
+                entity.HasKey(e => e.EnrollmentId);
+            });
 
-            // QuizResult و User
-            modelBuilder.Entity<QuizResult>()
-                .HasOne(qr => qr.User)
-                .WithMany(u => u.QuizResults)
-                .HasForeignKey(qr => qr.UserId)
-                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<FinalExam>(entity =>
+            {
+                entity.HasKey(fe => fe.FinalExamId);
+                entity.Property(fe => fe.Title).IsRequired(false);
+                entity.HasMany(fe => fe.FinalExamResults).WithOne(fer => fer.FinalExam).HasForeignKey(fer => fer.FinalExamId).OnDelete(DeleteBehavior.Cascade);
+                entity.HasMany(fe => fe.FinalExamQuestions).WithOne(feq => feq.FinalExam).HasForeignKey(feq => feq.FinalExamId).OnDelete(DeleteBehavior.Cascade);
+            });
 
-            // QuizResult و Lesson
-            modelBuilder.Entity<QuizResult>()
-                .HasOne(qr => qr.Lesson)
-                .WithMany(l => l.QuizResults)
-                .HasForeignKey(qr => qr.LessonId)
-                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<FinalExamResult>(entity =>
+            {
+                entity.HasKey(fer => fer.FinalExamResultId);
+                entity.Property(fer => fer.Score).HasColumnType("float");
+                entity.Property(fer => fer.AnswersJson).HasColumnType("nvarchar(max)").IsRequired(false);
+            });
 
-            // تحديد أنواع البيانات
-            modelBuilder.Entity<Course>()
-                .Property(c => c.Price)
-                .HasColumnType("decimal(10,2)");
+            modelBuilder.Entity<FinalExamQuestion>(entity =>
+            {
+                entity.HasKey(feq => feq.FinalExamQuestionId);
+                entity.Property(feq => feq.QuestionText).IsRequired();
+                entity.Property(feq => feq.CorrectAnswer).IsRequired();
+                entity.Property(feq => feq.QuestionType).IsRequired();
+                entity.Property(feq => feq.OptionA).IsRequired(false);
+                entity.Property(feq => feq.OptionB).IsRequired(false);
+                entity.Property(feq => feq.OptionC).IsRequired(false);
+                entity.Property(feq => feq.OptionD).IsRequired(false);
+                entity.HasOne(feq => feq.FinalExam).WithMany(fe => fe.FinalExamQuestions).HasForeignKey(feq => feq.FinalExamId).OnDelete(DeleteBehavior.Cascade);
+            });
 
-            modelBuilder.Entity<Payment>()
-                .Property(p => p.Amount)
-                .HasColumnType("decimal(10,2)");
+            modelBuilder.Entity<LessonNote>(entity =>
+            {
+                entity.HasKey(ln => ln.LessonNoteId);
+                entity.HasOne(ln => ln.UploadedBy).WithMany().HasForeignKey(ln => ln.UploadedByUserId).OnDelete(DeleteBehavior.Restrict);
+            });
 
-            modelBuilder.Entity<Course>()
-                .Property(c => c.IntroVideoUrl)
-                .IsRequired(false);
-
-            modelBuilder.Entity<User>()
-                .Property(u => u.PasswordHash)
-                .IsRequired(true);
-
-            modelBuilder.Entity<Notification>()
-                .Property(n => n.InvoiceUrl)
-                .IsRequired(false);
-
-            modelBuilder.Entity<QuizResult>()
-                .Property(qr => qr.AnswersJson)
-                .HasColumnType("nvarchar(max)")
-                .IsRequired(true);
-
-            modelBuilder.Entity<QuizResult>()
-                .Property(qr => qr.Score)
-                .HasColumnType("float");
+            modelBuilder.Entity<Notification>(entity =>
+            {
+                entity.HasKey(n => n.NotificationId);
+                entity.Property(n => n.Message).HasMaxLength(500);
+                entity.Property(n => n.InvoiceUrl).IsRequired(false);
+            });
         }
     }
 }
