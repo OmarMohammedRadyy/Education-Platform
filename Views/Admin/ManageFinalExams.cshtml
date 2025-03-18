@@ -1,31 +1,59 @@
-﻿@model IEnumerable<EducationPlatformN.Models.FinalExam>
+﻿@model List<EducationPlatformN.Models.Course>
 
-<h2>إدارة الاختبارات النهائية لدورة: @ViewBag.CourseTitle</h2>
-<a asp-action="AddFinalExam" asp-route-courseId="@ViewBag.CourseId" class="btn btn-primary">إضافة اختبار نهائي</a>
+<h2>إدارة الاختبارات النهائية</h2>
 
-@if (Model == null || !Model.Any())
+@if (!string.IsNullOrEmpty(ViewBag.Message))
 {
-    <p>لا توجد اختبارات نهائية لهذه الدورة بعد. أضف اختبارًا جديدًا باستخدام الزر أعلاه.</p>
+    <div class="alert alert-warning">
+        @ViewBag.Message
+    </div>
+}
+
+@if (Model != null && Model.Any())
+{
+    @foreach (var course in Model)
+    {
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5>@course.Title</h5>
+            </div>
+            <div>
+                <a asp-action="AddFinalExam" asp-route-courseId="@course.CourseId" class="btn btn-primary">إضافة اختبار نهائي</a>
+            </div>
+            
+            <div class="card-body">
+                
+                @if (course.FinalExams != null && course.FinalExams.Any())
+                {
+                    <table class="table mt-3">
+                        <thead>
+                            <tr>
+                                <th>العنوان</th>
+                                <th>الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var exam in course.FinalExams)
+                            {
+                                <tr>
+                                    <td>@exam.Title</td>
+                                    <td>
+                                        <a asp-action="ManageFinalExamQuestions" asp-route-finalExamId="@exam.FinalExamId" class="btn btn-info">إدارة الأسئلة</a>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+                else
+                {
+                    <p class="text-muted">لا توجد اختبارات نهائية لهذه الدورة.</p>
+                }
+            </div>
+        </div>
+    }
 }
 else
 {
-    <table class="table">
-        <thead>
-            <tr>
-                <th>العنوان</th>
-                <th>الإجراءات</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var exam in Model)
-            {
-                <tr>
-                    <td>@exam.Title</td>
-                    <td>
-                        <a asp-action="ManageFinalExamQuestions" asp-route-finalExamId="@exam.FinalExamId" class="btn btn-info">إدارة الأسئلة</a>
-                    </td>
-                </tr>
-            }
-        </tbody>
-    </table>
+    <p>لا توجد دورات متاحة.</p>
 }

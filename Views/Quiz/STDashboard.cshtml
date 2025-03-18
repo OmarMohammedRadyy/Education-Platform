@@ -44,7 +44,7 @@
         <div class="card">
             <div class="card-body">
                 <h5 class="card-title">تصفية البيانات</h5>
-                <form asp-action="Dashboard" method="get" class="row g-3">
+                <form asp-action="STDashboard" method="get" class="row g-3">
                     <input type="hidden" name="courseId" value="@Context.Request.Query["courseId"]" />
                     <div class="col-md-3">
                         <label>عنوان الدرس</label>
@@ -64,7 +64,7 @@
                     </div>
                     <div class="col-12">
                         <button type="submit" class="btn btn-filter">تطبيق التصفية</button>
-                        <a asp-action="Dashboard" asp-route-courseId="@Context.Request.Query["courseId"]" class="btn btn-secondary">إعادة تعيين</a>
+                        <a asp-action="STDashboard" asp-route-courseId="@Context.Request.Query["courseId"]" class="btn btn-secondary">إعادة تعيين</a>
                     </div>
                 </form>
             </div>

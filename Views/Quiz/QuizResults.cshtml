@@ -8,111 +8,128 @@
     var courseId = lessonId.HasValue ? _context.Lessons.FirstOrDefault(l => l.LessonId == lessonId)?.CourseId ?? 0 : 0;
 }
 
-<style>
-    body {
-        background: linear-gradient(135deg, #2c3e50, #ecf0f1);
-        color: #2c3e50;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    }
-
-    .result-container {
-        max-width: 900px;
-        margin: 50px auto;
-        padding: 30px;
-        background: rgba(255, 255, 255, 0.95);
-        border-radius: 15px;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-        transition: transform 0.3s ease;
-    }
-
-        .result-container:hover {
-            transform: translateY(-5px);
-        }
-
-    .score-box {
-        background: #3498db;
-        color: white;
-        padding: 20px;
-        border-radius: 10px;
-        text-align: center;
-        margin-bottom: 20px;
-    }
-
-    .answer-card {
-        background: #ffffff;
-        border: 1px solid #ddd;
-        border-radius: 10px;
-        padding: 15px;
-        margin-bottom: 15px;
-        transition: box-shadow 0.3s ease;
-    }
-
-        .answer-card:hover {
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-        }
-
-    .correct {
-        color: #27ae60;
-        font-weight: bold;
-    }
-
-    .incorrect {
-        color: #e74c3c;
-        font-weight: bold;
-    }
-
-    .btn-custom {
-        background: #e74c3c;
-        color: white;
-        border: none;
-        padding: 10px 20px;
-        border-radius: 5px;
-        text-decoration: none;
-        transition: background 0.3s ease;
-    }
-
-        .btn-custom:hover {
-            background: #c0392b;
-            color: white;
-        }
-</style>
-
-<div class="result-container">
-    <h1 class="text-center mb-4" style="color: #3498db;">نتائج الاختبار</h1>
-    <h3 class="text-center mb-4" style="color: #2c3e50;">@Model.LessonTitle</h3>
-
-    <div class="score-box">
-        <h4><strong>الدرجة: @Model.Score%</strong></h4>
-        <p><strong>تاريخ الإكمال:</strong> @Model.CompletionDate.ToString("dd/MM/yyyy HH:mm")</p>
-    </div>
-
-    <h4 class="mt-4" style="color: #2c3e50;">تفاصيل الإجابات</h4>
-    @foreach (var answer in Model.Answers)
-    {
-        <div class="answer-card">
-            <p><strong>السؤال:</strong> @answer.QuestionText</p>
-            <p><strong>إجابتك:</strong> @answer.SelectedAnswer</p>
-            <p><strong>الإجابة الصحيحة:</strong> @answer.CorrectAnswer</p>
-            <p>
-                <strong>الحالة:</strong>
-                @if (answer.IsCorrect)
-                {
-                    <span class="correct">صحيح <i class="fas fa-check-circle"></i></span>
-                }
-                else
-                {
-                    <span class="incorrect">خاطئ <i class="fas fa-times-circle"></i></span>
-                }
-            </p>
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>@ViewData["Title"]</title>
+    <link href="~/css/quiz-results-styles.css" rel="stylesheet" />
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="results-container">
+        <div class="results-header">
+            <h1 class="results-title fade-in">نتائج الاختبار</h1>
+            <h3 class="lesson-title slide-up-fade">@Model.LessonTitle</h3>
         </div>
-    }
 
-    <div class="text-center mt-4">
-        <a asp-action="MyLessons" asp-controller="Payment" asp-route-courseId="@courseId" class="btn-custom">العودة إلى الدروس</a>
+        <div class="score-card scale-in">
+            <div class="score-circle @(Model.Score >= 70 ? "high-score" : (Model.Score >= 50 ? "medium-score" : "low-score"))">
+                <div class="score-value">
+                    <span class="score-number">@Model.Score</span>
+                    <span class="score-percent">%</span>
+                </div>
+            </div>
+
+            <div class="score-details">
+                <div class="score-status">
+                    @if (Model.Score >= 70)
+                    {
+                        <span class="status-badge success"><i class="fas fa-trophy"></i> ممتاز</span>
+                    }
+                    else if (Model.Score >= 50)
+                    {
+                        <span class="status-badge warning"><i class="fas fa-check"></i> مقبول</span>
+                    }
+                    else
+                    {
+                        <span class="status-badge danger"><i class="fas fa-exclamation-triangle"></i> يحتاج تحسين</span>
+                    }
+                </div>
+                <div class="completion-date">
+                    <i class="fas fa-calendar-check"></i>
+                    <span>@Model.CompletionDate.ToString("dd/MM/yyyy HH:mm")</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="results-section">
+            <h2 class="section-title"><i class="fas fa-list-check"></i> تفاصيل الإجابات</h2>
+            <div class="answers-container">
+                @foreach (var answer in Model.Answers)
+                {
+                    <div class="answer-card @(answer.IsCorrect ? "correct-card" : "incorrect-card") fade-in" style="animation-delay: @(Model.Answers.IndexOf(answer) * 100)ms;">
+                        <div class="answer-header">
+                            <div class="question-number">@(Model.Answers.IndexOf(answer) + 1)</div>
+                            <div class="answer-status">
+                                @if (answer.IsCorrect)
+                                {
+                                    <span class="status-icon correct"><i class="fas fa-check-circle"></i></span>
+                                }
+                                else
+                                {
+                                    <span class="status-icon incorrect"><i class="fas fa-times-circle"></i></span>
+                                }
+                            </div>
+                        </div>
+                        <div class="answer-content">
+                            <div class="question-text">@answer.QuestionText</div>
+                            <div class="answer-details">
+                                <div class="user-answer @(answer.IsCorrect ? "correct-text" : "incorrect-text")">
+                                    <span class="answer-label"><i class="fas fa-user"></i> إجابتك:</span>
+                                    <span class="answer-text">@answer.SelectedAnswer</span>
+                                </div>
+                                @if (!answer.IsCorrect)
+                                {
+                                    <div class="correct-answer">
+                                        <span class="answer-label"><i class="fas fa-check"></i> الإجابة الصحيحة:</span>
+                                        <span class="answer-text">@answer.CorrectAnswer</span>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <div class="results-footer slide-up-fade">
+            <a href="@Url.Action("MyLessons", "Payment", new { courseId = courseId })" class="action-btn return-btn">
+                <i class="fas fa-chevron-right"></i> العودة إلى الدروس
+            </a>
+            <button type="button" class="action-btn share-btn" id="shareBtn">
+                <i class="fas fa-share-alt"></i> مشاركة النتيجة
+            </button>
+        </div>
     </div>
-</div>
 
-@section Scripts {
-    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
-    <partial name="_ValidationScriptsPartial" />
-}
+    <!-- Theme Toggle Button -->
+    <button class="theme-toggle" id="themeToggle" aria-label="تبديل المظهر">
+        <i class="fas fa-moon"></i>
+    </button>
+
+    <!-- Share Modal -->
+    <div class="modal-overlay" id="shareModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-share-alt"></i> مشاركة النتيجة</h3>
+                <button class="close-modal" id="closeModal"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <p>شارك نتيجة اختبارك مع أصدقائك:</p>
+                <div class="share-options">
+                    <button class="share-option whatsapp"><i class="fab fa-whatsapp"></i></button>
+                    <button class="share-option telegram"><i class="fab fa-telegram"></i></button>
+                    <button class="share-option twitter"><i class="fab fa-twitter"></i></button>
+                    <button class="share-option facebook"><i class="fab fa-facebook"></i></button>
+                </div>
+                
+            </div>
+        </div>
+    </div>
+
+    <script src="~/js/quiz-results.js"></script>
+</body>
+</html>

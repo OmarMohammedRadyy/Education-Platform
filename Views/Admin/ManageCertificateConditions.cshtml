@@ -35,6 +35,10 @@
         .btn i {
             margin-left: 5px;
         }
+
+        .toast-container {
+            z-index: 1080;
+        }
     </style>
 </head>
 <body>
@@ -43,9 +47,13 @@
 
         @if (TempData["Error"] != null)
         {
-            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                <i class="fas fa-exclamation-triangle me-2"></i> @TempData["Error"]
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            <div class="toast-container position-fixed top-0 end-0 p-3">
+                <div class="toast align-items-center bg-danger text-white border-0 fade show" role="alert" aria-live="assertive" aria-atomic="true">
+                    <div class="d-flex">
+                        <div class="toast-body"><i class="fas fa-exclamation-triangle me-2"></i> @TempData["Error"]</div>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                    </div>
+                </div>
             </div>
         }
 
@@ -79,7 +87,7 @@
                                         <td>@condition.Value</td>
                                         <td>@condition.Description</td>
                                         <td>
-                                            <button class="btn btn-warning btn-sm me-2" data-bs-toggle="modal" data-bs-target="#conditionModal" onclick="loadCondition(@condition.ConditionId, @condition.CourseId, '@condition.ConditionType', @condition.Value, '@condition.Description')">
+                                            <button class="btn btn-warning btn-sm me-2" data-bs-toggle="modal" data-bs-target="#conditionModal" onclick="loadCondition(@condition.ConditionId, @course.CourseId, '@condition.ConditionType', @condition.Value, '@condition.Description')">
                                                 <i class="fas fa-edit"></i> تعديل
                                             </button>
                                             <button class="btn btn-danger btn-sm" onclick="deleteCondition(@condition.ConditionId)">
@@ -121,6 +129,7 @@
                                     }
                                 </select>
                                 <small class="form-text text-muted">اختر الدورة التي تريد تحديد شروط شهادتها.</small>
+                                <span class="text-danger field-validation-error" id="courseId-error"></span>
                             </div>
                             <div class="mb-3">
                                 <label for="conditionType" class="form-label"><i class="fas fa-list-ul me-2"></i> نوع الشرط <span class="text-danger">*</span></label>
@@ -128,13 +137,16 @@
                                     <option value="">اختر نوع الشرط</option>
                                     <option value="CompletionPercentage">نسبة الإكمال</option>
                                     <option value="QuizScore">درجة الاختبار</option>
+                                    <option value="MaxAttempts">المحاولات القصوى</option>
                                 </select>
                                 <small class="form-text text-muted">حدد نوع الشرط المطلوب للحصول على الشهادة.</small>
+                                <span class="text-danger field-validation-error" id="conditionType-error"></span>
                             </div>
                             <div class="mb-3">
                                 <label for="value" class="form-label"><i class="fas fa-ruler me-2"></i> القيمة <span class="text-danger">*</span></label>
                                 <input type="number" id="value" name="Value" class="form-control" min="0" step="0.01" required />
                                 <small class="form-text text-muted">أدخل قيمة غير سالبة (مثال: 80).</small>
+                                <span class="text-danger field-validation-error" id="value-error"></span>
                             </div>
                             <div class="mb-3">
                                 <label for="description" class="form-label"><i class="fas fa-info-circle me-2"></i> الوصف (اختياري)</label>
@@ -150,11 +162,52 @@
                 </div>
             </div>
         </div>
+
+        <!-- Toast للرسائل -->
+        <div class="toast-container position-fixed top-0 end-0 p-3">
+            <div id="responseToast" class="toast align-items-center text-white border-0" role="alert" aria-live="assertive" aria-atomic="true">
+                <div class="d-flex">
+                    <div class="toast-body"></div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+            </div>
+        </div>
     </div>
 
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.5/jquery.validate.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jquery-validation-unobtrusive@3.2.12/dist/jquery.validate.unobtrusive.min.js"></script>
     <script>
+        $(document).ready(function () {
+            if (typeof $.fn.validate === 'undefined') {
+                console.error('jQuery Validate library is not loaded. Please check the network tab or use a local copy.');
+                return;
+            }
+
+            $('#conditionForm').validate({
+                rules: {
+                    CourseId: { required: true },
+                    ConditionType: { required: true },
+                    Value: { required: true, min: 0 }
+                },
+                messages: {
+                    CourseId: "يرجى اختيار الدورة.",
+                    ConditionType: "يرجى اختيار نوع الشرط.",
+                    Value: { required: "القيمة مطلوبة.", min: "القيمة يجب أن تكون غير سالبة." }
+                },
+                errorPlacement: function (error, element) {
+                    if (element.attr("name") === "CourseId") {
+                        error.appendTo("#courseId-error");
+                    } else if (element.attr("name") === "ConditionType") {
+                        error.appendTo("#conditionType-error");
+                    } else if (element.attr("name") === "Value") {
+                        error.appendTo("#value-error");
+                    }
+                }
+            });
+        });
+
         function resetModal(conditionId, courseId) {
             $('#conditionId').val(conditionId);
             $('#courseId').val(courseId || '');
@@ -162,6 +215,10 @@
             $('#value').val('');
             $('#description').val('');
             $('#conditionModalLabel').text(conditionId === 0 ? 'إضافة شرط جديد' : 'تعديل شرط');
+            if (typeof $('#conditionForm').validate === 'function') {
+                $('#conditionForm').validate().resetForm();
+            }
+            clearValidationErrors();
         }
 
         function loadCondition(conditionId, courseId, conditionType, value, description) {
@@ -171,43 +228,76 @@
             $('#value').val(value);
             $('#description').val(description || '');
             $('#conditionModalLabel').text('تعديل شرط');
+            if (typeof $('#conditionForm').validate === 'function') {
+                $('#conditionForm').validate().resetForm();
+            }
+            clearValidationErrors();
         }
 
-        function saveCondition(event) {
+        function clearValidationErrors() {
+            $('#courseId-error').text('');
+            $('#conditionType-error').text('');
+            $('#value-error').text('');
+        }
+
+               function saveCondition(event) {
             event.preventDefault();
             var form = $('#conditionForm');
+            var isValid = true;
 
-            // تسجيل القيم قبل الإرسال للتحقق
-            var data = form.serializeArray();
-            console.log("Form data being sent:", data);
+            if (typeof form.validate === 'function') {
+                if (!form.valid()) {
+                    console.log("Validation failed:", form.validate().errorList);
+                    isValid = false;
+                }
+            } else {
+                if (!$('#courseId').val() || !$('#conditionType').val() || !$('#value').val() || parseFloat($('#value').val()) < 0) {
+                    console.log("Manual validation failed.");
+                    isValid = false;
+                    if (!$('#courseId').val()) $('#courseId-error').text("يرجى اختيار الدورة.");
+                    if (!$('#conditionType').val()) $('#conditionType-error').text("يرجى اختيار نوع الشرط.");
+                    if (!$('#value').val() || parseFloat($('#value').val()) < 0) $('#value-error').text("القيمة يجب أن تكون غير سالبة.");
+                }
+            }
 
-            // تحقق بسيط على مستوى العميل
-            if ($('#courseId').val() === '' || $('#conditionType').val() === '' || $('#value').val() === '') {
-                alert('يرجى ملء جميع الحقول المطلوبة.');
-                return;
-            }
-            if (parseFloat($('#value').val()) < 0) {
-                alert('القيمة يجب أن تكون غير سالبة.');
-                return;
-            }
+            if (!isValid) return;
+
+            var formData = form.serialize();
+            console.log("Form data being sent:", formData); // تحقق من القيم هنا
 
             var conditionId = $('#conditionId').val();
-            var url = conditionId == 0 ? '@Url.Action("AddCertificateCondition")' : '@Url.Action("UpdateCertificateCondition")';
+            var url = conditionId == 0 ? '@Url.Action("AddCertificateCondition", "Admin")' : '@Url.Action("UpdateCertificateCondition", "Admin")';
 
             $.ajax({
                 url: url,
                 type: 'POST',
-                data: form.serialize(),
+                data: formData,
                 success: function (response) {
+                    console.log("Server response:", response);
+                    document.getElementById('conditionModal').classList.remove('show');
+                    document.body.classList.remove('modal-open');
+                    var modalBackdrop = document.querySelector('.modal-backdrop');
+                    if (modalBackdrop) modalBackdrop.remove();
+
+                    var toast = $('#responseToast');
+                    toast.removeClass().addClass('toast align-items-center text-white border-0');
+                    toast.addClass(response.success ? 'bg-success' : 'bg-danger');
+                    toast.find('.toast-body').text(response.message || (response.success ? 'تم الحفظ بنجاح' : 'حدث خطأ: ' + (response.message || 'غير معروف')));
+                    toast.toast({ delay: 3000 });
+                    toast.toast('show');
                     if (response.success) {
-                        $('#conditionModal').modal('hide');
-                        location.reload();
-                    } else {
-                        alert(response.message);
+                        setTimeout(function () {
+                            window.location.reload(true);
+                        }, 3000);
                     }
                 },
                 error: function (xhr, status, error) {
-                    alert('حدث خطأ أثناء الحفظ: ' + (xhr.responseText || error));
+                    console.error("AJAX error:", xhr, status, error);
+                    var toast = $('#responseToast');
+                    toast.removeClass().addClass('toast align-items-center text-white border-0 bg-danger');
+                    toast.find('.toast-body').text('حدث خطأ أثناء الحفظ: HTTP ' + xhr.status + ' - ' + (xhr.responseText || 'Method Not Allowed - تحقق من الخادم'));
+                    toast.toast({ delay: 3000 });
+                    toast.toast('show');
                 }
             });
         }
@@ -215,18 +305,28 @@
         function deleteCondition(conditionId) {
             if (confirm('هل أنت متأكد من حذف هذا الشرط؟')) {
                 $.ajax({
-                    url: '@Url.Action("DeleteCertificateCondition")',
+                    url: '@Url.Action("DeleteCertificateCondition", "Admin")',
                     type: 'POST',
                     data: { conditionId: conditionId, "__RequestVerificationToken": $('input[name="__RequestVerificationToken"]').val() },
                     success: function (response) {
+                        console.log("Delete response:", response);
+                        var toast = $('#responseToast');
+                        toast.removeClass().addClass('toast align-items-center text-white border-0');
+                        toast.addClass(response.success ? 'bg-success' : 'bg-danger');
+                        toast.find('.toast-body').text(response.message || (response.success ? 'تم الحذف بنجاح' : 'حدث خطأ'));
+                        toast.toast({ delay: 3000 });
+                        toast.toast('show');
                         if (response.success) {
                             $('#condition-row-' + conditionId).remove();
-                        } else {
-                            alert(response.message);
                         }
                     },
-                    error: function () {
-                        alert('حدث خطأ أثناء الحذف.');
+                    error: function (xhr, status, error) {
+                        console.error("Delete AJAX error:", xhr, status, error);
+                        var toast = $('#responseToast');
+                        toast.removeClass().addClass('toast align-items-center text-white border-0 bg-danger');
+                        toast.find('.toast-body').text('حدث خطأ أثناء الحذف: HTTP ' + xhr.status + ' - ' + (xhr.responseText || error));
+                        toast.toast({ delay: 3000 });
+                        toast.toast('show');
                     }
                 });
             }

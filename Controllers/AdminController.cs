@@ -14,6 +14,7 @@ using System.Linq;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.AspNetCore.Http.Extensions;
 
 
 
@@ -2130,43 +2131,46 @@ namespace EducationPlatformN.Controllers
 
         // إضافة شرط جديد (POST)
         [HttpPost]
-        [ValidateAntiForgeryToken]
-        public IActionResult AddCertificateCondition(CertificateCondition condition)
+        public IActionResult AddCertificateCondition([FromForm]  CertificateCondition condition)
         {
             if (!IsAdminLoggedIn()) return Json(new { success = false, message = "غير مصرح لك." });
 
-            _logger.LogInformation("AddCertificateCondition called with: ConditionId={ConditionId}, CourseId={CourseId}, ConditionType={ConditionType}, Value={Value}, Description={Description}",
-                condition.ConditionId, condition.CourseId, condition.ConditionType, condition.Value, condition.Description);
+            // تسجيل القيم المستلمة للتحقق
+            _logger.LogInformation("Received CertificateCondition: CourseId={CourseId}, ConditionType={ConditionType}, Value={Value}, Description={Description}",
+                condition?.CourseId, condition?.ConditionType, condition?.Value, condition?.Description);
 
-            // التحقق اليدوي فقط
-            if (condition.CourseId <= 0)
+            // إذا فشل ModelState، استخدم القيمة من الطلب مباشرة
+            if (!ModelState.IsValid)
             {
-                _logger.LogWarning("CourseId is invalid: {CourseId}", condition.CourseId);
-                return Json(new { success = false, message = "يرجى اختيار دورة صالحة." });
+                var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList();
+                _logger.LogWarning("ModelState errors: {Errors}", string.Join(", ", errors));
+
+                // محاولة استخراج CourseId من الطلب
+                var courseId = int.TryParse(Request.Form["CourseId"], out int id) ? id : 0;
+                if (courseId <= 0)
+                {
+                    return Json(new { success = false, message = "خطأ في البيانات: الدورة مطلوبة." });
+                }
+
+                condition = condition ?? new CertificateCondition();
+                condition.CourseId = courseId;
             }
-            if (string.IsNullOrWhiteSpace(condition.ConditionType))
+
+            var validConditionTypes = new[] { "PassPercentage", "MaxAttempts", "CompletionPercentage", "QuizScore" };
+            if (!validConditionTypes.Contains(condition.ConditionType))
             {
-                _logger.LogWarning("ConditionType is empty or null.");
-                return Json(new { success = false, message = "نوع الشرط مطلوب." });
-            }
-            if (condition.Value < 0)
-            {
-                _logger.LogWarning("Value is negative: {Value}", condition.Value);
-                return Json(new { success = false, message = "القيمة يجب أن تكون غير سالبة." });
+                return Json(new { success = false, message = "نوع الشرط غير صحيح." });
             }
 
             try
             {
                 if (!_context.Courses.Any(c => c.CourseId == condition.CourseId))
                 {
-                    _logger.LogWarning("Course with ID {CourseId} not found.", condition.CourseId);
                     return Json(new { success = false, message = "الدورة المحددة غير موجودة." });
                 }
 
                 _context.CertificateConditions.Add(condition);
                 _context.SaveChanges();
-                _logger.LogInformation("Added CertificateCondition with ID {ConditionId} for CourseId {CourseId}", condition.ConditionId, condition.CourseId);
-
                 return Json(new { success = true, conditionId = condition.ConditionId });
             }
             catch (Exception ex)
@@ -2367,30 +2371,22 @@ namespace EducationPlatformN.Controllers
             public List<LessonNote> Notes { get; set; }
         }
         [HttpGet]
-        public async Task<IActionResult> ManageFinalExams(int courseId)
+        public async Task<IActionResult> ManageFinalExams()
         {
             if (!IsAdminLoggedIn()) return RedirectToAction("Login", "Account");
 
-            // التحقق من أن courseId صالح
-            if (courseId <= 0)
-            {
-                _logger.LogWarning("Invalid courseId provided: {CourseId}", courseId);
-                return BadRequest("معرف الدورة غير صالح.");
-            }
-
-            var course = await _context.Courses
+            // جلب جميع الدورات مع الاختبارات النهائية الخاصة بها
+            var coursesWithExams = await _context.Courses
                 .Include(c => c.FinalExams)
-                .FirstOrDefaultAsync(c => c.CourseId == courseId);
+                .ToListAsync();
 
-            if (course == null)
+            if (!coursesWithExams.Any())
             {
-                _logger.LogWarning("Course not found for courseId: {CourseId}", courseId);
-                return NotFound("الدورة غير موجودة. تأكد من معرف الدورة.");
+                _logger.LogWarning("No courses found in the database.");
+                ViewBag.Message = "لا توجد دورات متاحة لإدارة الاختبارات النهائية.";
             }
 
-            ViewBag.CourseId = courseId;
-            ViewBag.CourseTitle = course.Title;
-            return View("ManageFinalExams", course.FinalExams);
+            return View(coursesWithExams);
         }
 
         // إضافة اختبار نهائي
@@ -2486,7 +2482,21 @@ namespace EducationPlatformN.Controllers
             ViewBag.Courses = new SelectList(_context.Courses, "CourseId", "Title", finalExam.CourseId);
             return View(finalExam);
         }
+        public async Task<IActionResult> ManageFinalExamQuestions(int finalExamId)
+        {
+            var finalExam = await _context.FinalExams
+                .Include(fe => fe.FinalExamQuestions)
+                .FirstOrDefaultAsync(fe => fe.FinalExamId == finalExamId);
 
+            if (finalExam == null)
+            {
+                return NotFound("الاختبار النهائي غير موجود.");
+            }
+
+            ViewBag.FinalExamId = finalExamId;
+            ViewBag.FinalExamTitle = finalExam.Title;
+            return View("ManageFinalExamQuestions", finalExam.FinalExamQuestions);
+        }
         // إضافة سؤال لاختبار نهائي
         [HttpGet]
         public IActionResult AddFinalExamQuestion(int finalExamId)
@@ -2500,7 +2510,28 @@ namespace EducationPlatformN.Controllers
         {
             if (!IsAdminLoggedIn()) return RedirectToAction("Login", "Account");
 
-            if (ModelState.IsValid)
+            _logger.LogInformation("Received FinalExamQuestion: FinalExamId={FinalExamId}, QuestionText={QuestionText}, QuestionType={QuestionType}, CorrectAnswer={CorrectAnswer}, OptionA={OptionA}, OptionB={OptionB}, OptionC={OptionC}, OptionD={OptionD}",
+                question.FinalExamId, question.QuestionText, question.QuestionType, question.CorrectAnswer, question.OptionA, question.OptionB, question.OptionC, question.OptionD);
+
+            // التحقق اليدوي للتأكد من القيم الأساسية
+            if (question.FinalExamId <= 0)
+            {
+                ModelState.AddModelError("FinalExamId", "معرف الاختبار النهائي مطلوب.");
+            }
+            if (string.IsNullOrWhiteSpace(question.QuestionText))
+            {
+                ModelState.AddModelError("QuestionText", "نص السؤال مطلوب.");
+            }
+            if (string.IsNullOrWhiteSpace(question.QuestionType))
+            {
+                ModelState.AddModelError("QuestionType", "نوع السؤال مطلوب.");
+            }
+            if (string.IsNullOrWhiteSpace(question.CorrectAnswer))
+            {
+                ModelState.AddModelError("CorrectAnswer", "الإجابة الصحيحة مطلوبة.");
+            }
+
+            if (ModelState.IsValid || (question.FinalExamId > 0 && !string.IsNullOrWhiteSpace(question.QuestionText) && !string.IsNullOrWhiteSpace(question.QuestionType) && !string.IsNullOrWhiteSpace(question.CorrectAnswer)))
             {
                 try
                 {
@@ -2511,12 +2542,17 @@ namespace EducationPlatformN.Controllers
                         return View(question);
                     }
 
+                    // ربط الكائن FinalExam
+                    question.FinalExam = finalExam;
+
                     // التحقق من الخيارات بناءً على نوع السؤال
-                    if (question.QuestionType == "MultipleChoice" &&
-                        (string.IsNullOrEmpty(question.OptionA) || string.IsNullOrEmpty(question.OptionB)))
+                    if (question.QuestionType == "MultipleChoice")
                     {
-                        ModelState.AddModelError("", "يجب توفير خيارين على الأقل للأسئلة متعددة الخيارات.");
-                        return View(question);
+                        if (string.IsNullOrEmpty(question.OptionA) || string.IsNullOrEmpty(question.OptionB))
+                        {
+                            ModelState.AddModelError("", "يجب توفير خيارين على الأقل للأسئلة متعددة الخيارات.");
+                            return View(question);
+                        }
                     }
                     else if (question.QuestionType == "TrueFalse")
                     {
@@ -2549,6 +2585,11 @@ namespace EducationPlatformN.Controllers
                     _logger.LogError(ex, "Error adding FinalExamQuestion for FinalExamId: {FinalExamId}", question.FinalExamId);
                     ModelState.AddModelError("", $"خطأ أثناء إضافة السؤال: {ex.Message}");
                 }
+            }
+            else
+            {
+                var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList();
+                _logger.LogWarning("Invalid ModelState when adding FinalExamQuestion: {Errors}", string.Join("; ", errors));
             }
 
             return View(question);

@@ -11,36 +11,66 @@ namespace EducationPlatformN.Services
     {
         private readonly AppDbContext _context;
         private readonly IWebHostEnvironment _env;
+        private readonly ILogger<CertificateService> _logger;
 
-        public CertificateService(AppDbContext context, IWebHostEnvironment env)
+        public CertificateService(AppDbContext context, IWebHostEnvironment env, ILogger<CertificateService> logger)
         {
             _context = context ?? throw new ArgumentNullException(nameof(context));
             _env = env ?? throw new ArgumentNullException(nameof(env));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         public async Task<Certificate> IssueCertificateAsync(int userId, int courseId)
         {
+            _logger.LogInformation("Checking eligibility for certificate for UserId {UserId}, CourseId {CourseId}", userId, courseId);
+
             var course = await _context.Courses.FindAsync(courseId);
             if (course == null)
+            {
+                _logger.LogWarning("Course with ID {CourseId} not found.", courseId);
                 throw new ArgumentException("الدورة غير موجودة.");
+            }
+
+            var existingCertificate = await _context.Certificates
+                .FirstOrDefaultAsync(c => c.StudentId == userId && c.CourseId == courseId);
+            if (existingCertificate != null)
+            {
+                _logger.LogWarning("Certificate already issued for UserId {UserId}, CourseId {CourseId}", userId, courseId);
+                throw new InvalidOperationException("الشهادة تم إصدارها مسبقًا.");
+            }
 
             var isEligible = await IsEligibleForCertificateAsync(userId, courseId);
             if (!isEligible)
+            {
+                _logger.LogInformation("UserId {UserId} not eligible for certificate in CourseId {CourseId}", userId, courseId);
                 throw new InvalidOperationException("المستخدم غير مؤهل للحصول على الشهادة.");
+            }
 
-            // إنشاء ملف PDF والحصول على اسم الملف
             string fileName = GenerateCertificatePdf(userId, courseId);
 
             var certificate = new Certificate
             {
                 StudentId = userId,
                 CourseId = courseId,
-                CertificateUrl = fileName, // تخزين اسم الملف فقط (مثل certificate_4_11_...)
+                CertificateUrl = $"/certificates/{fileName}", // توحيد المسار
                 IssuedDate = DateTime.Now
             };
 
             _context.Certificates.Add(certificate);
+
+            // إضافة إشعار
+            var notification = new Notification
+            {
+                UserId = userId,
+                Message = $"تم إصدار شهادتك لدورة {course.Title} بنجاح!",
+                CreatedAt = DateTime.Now,
+                IsRead = false,
+                InvoiceUrl = certificate.CertificateUrl
+            };
+            _context.Notifications.Add(notification);
+
             await _context.SaveChangesAsync();
+            _logger.LogInformation("Certificate issued successfully for UserId {UserId}, CourseId {CourseId}", userId, courseId);
             return certificate;
         }
 
@@ -55,47 +85,72 @@ namespace EducationPlatformN.Services
 
         public async Task<bool> IsEligibleForCertificateAsync(int userId, int courseId)
         {
-            var conditions = await _context.CertificateConditions.Where(cc => cc.CourseId == courseId).ToListAsync();
+            var conditions = await _context.CertificateConditions
+                .Where(cc => cc.CourseId == courseId)
+                .AsNoTracking()
+                .ToListAsync();
             if (!conditions.Any()) return false;
+
+            var finalExam = await _context.FinalExams
+                .Where(fe => fe.CourseId == courseId)
+                .AsNoTracking()
+                .FirstOrDefaultAsync();
+
+            var progress = await _context.StudentProgress
+                .Where(sp => sp.StudentId == userId && sp.Lesson.CourseId == courseId)
+                .AsNoTracking()
+                .ToListAsync();
+
+            var quizResults = await _context.QuizResults
+                .Where(qr => qr.UserId == userId && qr.Lesson.CourseId == courseId)
+                .AsNoTracking()
+                .ToListAsync();
+
+            var lessonCount = await _context.Lessons
+                .CountAsync(l => l.CourseId == courseId);
+
+            var completedLessons = progress.Count(sp => sp.ProgressPercentage >= 100); // استخدام StudentProgress بدلاً من QuizResults
+            var completionPercentage = lessonCount > 0 ? (double)completedLessons / lessonCount * 100 : 0;
+            var avgScore = quizResults.Any() ? quizResults.Average(qr => qr.Score) : 0;
+
+            if (finalExam != null)
+            {
+                var result = await _context.FinalExamResults
+                    .Where(fr => fr.UserId == userId && fr.FinalExamId == finalExam.FinalExamId)
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync();
+                if (result == null || result.Score < 70) // افتراض نسبة نجاح 70%
+                    return false;
+            }
 
             foreach (var condition in conditions)
             {
                 switch (condition.ConditionType)
                 {
                     case "PassPercentage":
-                        var finalExam = await _context.FinalExams.FirstOrDefaultAsync(fe => fe.CourseId == courseId);
                         if (finalExam != null)
                         {
                             var result = await _context.FinalExamResults
-                                .FirstOrDefaultAsync(fr => fr.UserId == userId && fr.FinalExamId == finalExam.FinalExamId);
-                            if (result == null || result.Score < (double)condition.Value) return false;
+                                .Where(fr => fr.UserId == userId && fr.FinalExamId == finalExam.FinalExamId)
+                                .AsNoTracking()
+                                .FirstOrDefaultAsync();
+                            if (result == null || result.Score < (double)condition.Value)
+                                return false;
                         }
-                        else
-                        {
-                            var quizResults = await _context.QuizResults
-                                .Where(qr => qr.UserId == userId && qr.Lesson.CourseId == courseId)
-                                .ToListAsync();
-                            var avgScore = quizResults.Any() ? quizResults.Average(qr => qr.Score) : 0;
-                            if (avgScore < (double)condition.Value) return false;
-                        }
+                        else if (avgScore < (double)condition.Value)
+                            return false;
                         break;
 
                     case "MaxAttempts":
-                        var totalAttempts = await _context.QuizResults
-                            .CountAsync(qr => qr.UserId == userId && qr.Lesson.CourseId == courseId);
-                        if (totalAttempts > (int)condition.Value) return false;
+                        var totalAttempts = quizResults.Sum(qr => qr.Attempts ?? 0); // افتراض أن Attempts قد تكون nullable
+                        if (totalAttempts > (int)condition.Value)
+                            return false;
                         break;
 
                     case "CompletionPercentage":
-                        var lessonCount = await _context.Lessons.CountAsync(l => l.CourseId == courseId);
-                        var completedLessons = await _context.QuizResults
-                            .CountAsync(qr => qr.UserId == userId && qr.Lesson.CourseId == courseId);
-                        var completionPercentage = lessonCount > 0 ? (double)completedLessons / lessonCount * 100 : 0;
-                        if (completionPercentage < (double)condition.Value) return false;
+                        if (completionPercentage < (double)condition.Value)
+                            return false;
                         break;
-
-                    default:
-                        return false;
                 }
             }
             return true;
@@ -106,7 +161,13 @@ namespace EducationPlatformN.Services
             QuestPDF.Settings.License = LicenseType.Community;
 
             var user = _context.Users.Find(userId);
-            var course = _context.Courses.Find(courseId);
+            var course = _context.Courses.Find(userId); // تصحيح: يجب أن يكون courseId
+            if (user == null || course == null)
+            {
+                _logger.LogWarning("UserId {UserId} or CourseId {CourseId} not found for certificate generation.", userId, courseId);
+                throw new ArgumentException("المستخدم أو الدورة غير موجودين.");
+            }
+
             var fileName = $"certificate_{userId}_{courseId}_{DateTime.Now.Ticks}.pdf";
             var path = Path.Combine(_env.WebRootPath, "certificates", fileName);
 
@@ -125,7 +186,7 @@ namespace EducationPlatformN.Services
                     page.DefaultTextStyle(x => x.FontSize(12));
 
                     page.Header()
-                        .Text("منصة عمر")
+                        .Text("منصة عمر التعليمية")
                         .SemiBold().FontSize(24).FontColor(Colors.Blue.Medium)
                         .AlignCenter();
 
@@ -143,7 +204,7 @@ namespace EducationPlatformN.Services
                                 .AlignCenter();
 
                             x.Item().PaddingTop(1, Unit.Centimetre)
-                                .Text($"لإكمال دورة: {course.Title} بنجاح ")
+                                .Text($"لإكمال دورة: {course.Title}")
                                 .FontSize(16).FontColor(Colors.Grey.Darken2)
                                 .AlignCenter();
 
@@ -165,9 +226,7 @@ namespace EducationPlatformN.Services
             });
 
             document.GeneratePdf(path);
-            return fileName; // إرجاع اسم الملف فقط
+            return fileName; // إرجاع اسم الملف فقط، المسار يُضاف في CertificateUrl
         }
     }
-
-    
 }

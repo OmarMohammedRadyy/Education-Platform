@@ -156,7 +156,7 @@ namespace EducationPlatformN.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> Dashboard(int courseId, string filterLessonTitle = null, DateTime? filterStartDate = null, DateTime? filterEndDate = null, double? filterMinScore = null)
+        public async Task<IActionResult> STDashboard(int courseId, string filterLessonTitle = null, DateTime? filterStartDate = null, DateTime? filterEndDate = null, double? filterMinScore = null)
         {
             if (HttpContext.Session.GetInt32("UserId") == null)
             {
@@ -261,41 +261,62 @@ namespace EducationPlatformN.Controllers
         [HttpGet]
         public async Task<IActionResult> FinalExam(int courseId)
         {
-            var enrollment = await _context.Enrollments
-                .FirstOrDefaultAsync(e => e.UserId == int.Parse(User.FindFirst("UserId").Value) && e.CourseId == courseId);
-
-            if (enrollment == null)
+            try
             {
-                return Unauthorized("غير مسجل في هذه الدورة.");
+                var userId = HttpContext.Session.GetInt32("UserId");
+                if (userId == null)
+                {
+                    return RedirectToAction("Login", "Account");
+                }
+
+                var enrollment = await _context.Enrollments
+                    .FirstOrDefaultAsync(e => e.UserId == userId.Value && e.CourseId == courseId);
+
+                if (enrollment == null)
+                {
+                    return Unauthorized("غير مسجل في هذه الدورة.");
+                }
+
+                var progress = await _context.StudentProgress
+                    .Where(sp => sp.StudentId == userId.Value && sp.Lesson.CourseId == courseId)
+                    .ToListAsync();
+
+                var totalLessons = await _context.Lessons.CountAsync(l => l.CourseId == courseId);
+                var completedLessons = progress.Count(sp => sp.ProgressPercentage >= 100);
+
+                if (completedLessons < totalLessons)
+                {
+                    TempData["ErrorMessage"] = "يجب إكمال جميع الدروس أولاً.";
+                    return RedirectToAction("STDashboard", new { courseId });
+                }
+
+                var finalExam = await _context.FinalExams
+                    .Include(fe => fe.FinalExamQuestions)
+                    .FirstOrDefaultAsync(fe => fe.CourseId == courseId);
+
+                if (finalExam == null)
+                {
+                    return NotFound("لا يوجد اختبار نهائي لهذه الدورة بعد.");
+                }
+
+                return View(finalExam);
             }
-
-            var progress = await _context.StudentProgress
-                .Where(sp => sp.StudentId == enrollment.UserId && sp.Lesson.CourseId == courseId)
-                .ToListAsync();
-
-            var totalLessons = await _context.Lessons.CountAsync(l => l.CourseId == courseId);
-            var completedLessons = progress.Count(sp => sp.ProgressPercentage >= 100);
-
-            if (completedLessons < totalLessons)
+            catch (Exception ex)
             {
-                return RedirectToAction("Dashboard", new { message = "يجب إكمال جميع الدروس أولاً." });
+                Console.WriteLine($"Error in FinalExam: {ex.Message}");
+                return StatusCode(500, "حدث خطأ داخلي. يرجى المحاولة لاحقًا.");
             }
-
-            var finalExam = await _context.FinalExams
-                .Include(fe => fe.FinalExamQuestions)
-                .FirstOrDefaultAsync(fe => fe.CourseId == courseId);
-
-            if (finalExam == null)
-            {
-                return NotFound("لا يوجد اختبار نهائي لهذه الدورة بعد.");
-            }
-
-            return View(finalExam);
         }
 
         [HttpPost]
         public async Task<IActionResult> SubmitFinalExam(int finalExamId, Dictionary<int, string> answers)
         {
+            var userId = HttpContext.Session.GetInt32("UserId");
+            if (userId == null)
+            {
+                return Unauthorized("المستخدم غير مصدق.");
+            }
+
             var finalExam = await _context.FinalExams
                 .Include(fe => fe.FinalExamQuestions)
                 .FirstOrDefaultAsync(fe => fe.FinalExamId == finalExamId);
@@ -318,15 +339,32 @@ namespace EducationPlatformN.Controllers
 
             var result = new FinalExamResult
             {
-                UserId = int.Parse(User.FindFirst("UserId").Value),
+                UserId = userId.Value,
                 FinalExamId = finalExamId,
                 Score = score,
                 CompletionDate = DateTime.Now,
-                AnswersJson = JsonConvert.SerializeObject(answers) // تصحيح لاستخدام Newtonsoft.Json
+                AnswersJson = JsonConvert.SerializeObject(answers)
             };
 
             _context.FinalExamResults.Add(result);
             await _context.SaveChangesAsync();
+
+            try
+            {
+                if (await _certificateService.IsEligibleForCertificateAsync(userId.Value, finalExam.CourseId))
+                {
+                    var certificate = await _certificateService.IssueCertificateAsync(userId.Value, finalExam.CourseId);
+                    TempData["SuccessMessage"] = $"تهانينا! لقد حصلت على الشهادة. يمكنك تنزيلها من صفحة <a href='{Url.Action("Certificates")}'>الشهادات</a>.";
+                }
+                else
+                {
+                    TempData["InfoMessage"] = "لم تتحقق جميع الشروط بعد. حاول مجددًا بعد إكمال المتطلبات.";
+                }
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = $"خطأ أثناء إصدار الشهادة: {ex.Message}";
+            }
 
             return RedirectToAction("Result", new { resultId = result.FinalExamResultId });
         }
@@ -443,7 +481,9 @@ namespace EducationPlatformN.Controllers
         {
             var filePath = Path.Combine(_env.WebRootPath, "certificates", fileName);
             if (!System.IO.File.Exists(filePath))
-                return NotFound($"الملف {fileName} غير موجود في {filePath}");
+            {
+                return NotFound($"الملف {fileName} غير موجود.");
+            }
 
             var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
             return File(fileStream, "application/pdf", fileName);

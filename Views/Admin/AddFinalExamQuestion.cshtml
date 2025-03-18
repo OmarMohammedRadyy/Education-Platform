@@ -4,37 +4,38 @@
 <form asp-action="AddFinalExamQuestion" method="post">
     <input type="hidden" asp-for="FinalExamId" />
     <div class="form-group">
-        <label asp-for="QuestionText" class="control-label"></label>
+        <label asp-for="QuestionText" class="control-label">نص السؤال</label>
         <input asp-for="QuestionText" class="form-control" />
         <span asp-validation-for="QuestionText" class="text-danger"></span>
     </div>
     <div class="form-group">
-        <label asp-for="QuestionType" class="control-label"></label>
-        <select asp-for="QuestionType" class="form-control">
+        <label asp-for="QuestionType" class="control-label">نوع السؤال</label>
+        <select asp-for="QuestionType" class="form-control" id="questionType">
             <option value="MultipleChoice">متعدد الخيارات</option>
             <option value="TrueFalse">صح/خطأ</option>
             <option value="Text">نصي</option>
         </select>
+        <span asp-validation-for="QuestionType" class="text-danger"></span>
     </div>
-    <div class="form-group">
-        <label asp-for="CorrectAnswer" class="control-label"></label>
+    <div class="form-group" id="correctAnswerField">
+        <label asp-for="CorrectAnswer" class="control-label">الإجابة الصحيحة</label>
         <input asp-for="CorrectAnswer" class="form-control" />
         <span asp-validation-for="CorrectAnswer" class="text-danger"></span>
     </div>
-    <div class="form-group">
-        <label asp-for="OptionA" class="control-label"></label>
+    <div class="form-group options" id="optionAField">
+        <label asp-for="OptionA" class="control-label">الخيار أ</label>
         <input asp-for="OptionA" class="form-control" />
     </div>
-    <div class="form-group">
-        <label asp-for="OptionB" class="control-label"></label>
+    <div class="form-group options" id="optionBField">
+        <label asp-for="OptionB" class="control-label">الخيار ب</label>
         <input asp-for="OptionB" class="form-control" />
     </div>
-    <div class="form-group">
-        <label asp-for="OptionC" class="control-label"></label>
+    <div class="form-group options" id="optionCField">
+        <label asp-for="OptionC" class="control-label">الخيار ج</label>
         <input asp-for="OptionC" class="form-control" />
     </div>
-    <div class="form-group">
-        <label asp-for="OptionD" class="control-label"></label>
+    <div class="form-group options" id="optionDField">
+        <label asp-for="OptionD" class="control-label">الخيار د</label>
         <input asp-for="OptionD" class="form-control" />
     </div>
     <button type="submit" class="btn btn-primary">إضافة</button>
@@ -44,4 +45,35 @@
     @{
         await Html.RenderPartialAsync("_ValidationScriptsPartial");
     }
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(document).ready(function () {
+            console.log("jQuery loaded and script running!");
+            function toggleFields() {
+                var questionType = $("#questionType").val();
+                console.log("QuestionType selected: " + questionType);
+
+                if (questionType === "MultipleChoice") {
+                    $(".options").show();
+                    $("#correctAnswerField").show();
+                } else if (questionType === "TrueFalse") {
+                    $("#optionAField").show();
+                    $("#optionAField input").val("True");
+                    $("#optionAField input").prop("readonly", true);
+                    $("#optionBField").show();
+                    $("#optionBField input").val("False");
+                    $("#optionBField input").prop("readonly", true);
+                    $("#optionCField").hide();
+                    $("#optionDField").hide();
+                    $("#correctAnswerField").show();
+                } else if (questionType === "Text") {
+                    $(".options").hide();
+                    $("#correctAnswerField").show();
+                }
+            }
+
+            toggleFields();
+            $("#questionType").change(toggleFields);
+        });
+    </script>
 }

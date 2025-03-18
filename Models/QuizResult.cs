@@ -10,5 +10,6 @@
         public string AnswersJson { get; set; }
         public User User { get; set; }
         public Lesson Lesson { get; set; }
+        public int? Attempts { get; internal set; }
     }
 }

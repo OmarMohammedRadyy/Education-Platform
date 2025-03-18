@@ -5,122 +5,151 @@
     var lessonId = ViewBag.LessonId;
 }
 
-<style>
-    body {
-        background: linear-gradient(135deg, #3498db, #ecf0f1);
-        color: #2c3e50;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    }
-
-    .quiz-container {
-        max-width: 800px;
-        margin: 50px auto;
-        padding: 30px;
-        background: rgba(255, 255, 255, 0.9);
-        border-radius: 15px;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-    }
-
-    .question-card {
-        background: #ffffff;
-        border: 1px solid #ddd;
-        border-radius: 10px;
-        padding: 20px;
-        margin-bottom: 20px;
-        transition: transform 0.3s ease;
-    }
-
-        .question-card:hover {
-            transform: translateY(-5px);
-        }
-
-    .option-input {
-        margin-right: 10px;
-    }
-
-    .btn-submit {
-        background: #2ecc71;
-        color: white;
-        border: none;
-        padding: 10px 30px;
-        border-radius: 5px;
-        transition: background 0.3s ease;
-    }
-
-        .btn-submit:hover {
-            background: #27ae60;
-        }
-</style>
-
-<div class="quiz-container">
-    <h1 class="text-center mb-4" style="color: #3498db;">اختبار الدرس</h1>
-
-    <form asp-action="SubmitQuiz" method="post">
-        <input type="hidden" name="lessonId" value="@lessonId" />
-        @for (int i = 0; i < Model.Count; i++)
-        {
-            var question = Model[i];
-            <div class="question-card">
-                <h5 class="mb-3"><strong>السؤال @(i + 1):</strong> @question.QuestionText</h5>
-                @switch (question.QuestionType)
-                {
-                    case "MultipleChoice":
-                        <div class="form-check">
-                            @if (!string.IsNullOrEmpty(question.OptionA) && question.OptionA != "N/A")
-                            {
-                                <input type="radio" name="answers[@question.QuestionId]" value="@question.OptionA" class="option-input" required />
-                                <label class="form-check-label">@question.OptionA</label>
-                            }
-                        </div>
-                        <div class="form-check">
-                            @if (!string.IsNullOrEmpty(question.OptionB) && question.OptionB != "N/A")
-                            {
-                                <input type="radio" name="answers[@question.QuestionId]" value="@question.OptionB" class="option-input" />
-                                <label class="form-check-label">@question.OptionB</label>
-                            }
-                        </div>
-                        <div class="form-check">
-                            @if (!string.IsNullOrEmpty(question.OptionC) && question.OptionC != "N/A")
-                            {
-                                <input type="radio" name="answers[@question.QuestionId]" value="@question.OptionC" class="option-input" />
-                                <label class="form-check-label">@question.OptionC</label>
-                            }
-                        </div>
-                        <div class="form-check">
-                            @if (!string.IsNullOrEmpty(question.OptionD) && question.OptionD != "N/A")
-                            {
-                                <input type="radio" name="answers[@question.QuestionId]" value="@question.OptionD" class="option-input" />
-                                <label class="form-check-label">@question.OptionD</label>
-                            }
-                        </div>
-                        break;
-
-                    case "TrueFalse":
-                        <div class="form-check">
-                            <input type="radio" name="answers[@question.QuestionId]" value="True" class="option-input" required />
-                            <label class="form-check-label">صح <i class="fas fa-check"></i></label>
-                        </div>
-                        <div class="form-check">
-                            <input type="radio" name="answers[@question.QuestionId]" value="False" class="option-input" />
-                            <label class="form-check-label">خطأ <i class="fas fa-times"></i></label>
-                        </div>
-                        break;
-
-                    case "Text":
-                        <div class="form-group">
-                            <label>أدخل إجابتك:</label>
-                            <textarea name="answers[@question.QuestionId]" class="form-control" rows="3" required></textarea>
-                        </div>
-                        break;
-                }
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>@ViewData["Title"]</title>
+    <link href="~/css/quiz-styles.css" rel="stylesheet" />
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="quiz-container">
+        <div class="quiz-header">
+            <h1 class="quiz-title fade-in">اختبار الدرس</h1>
+            <div class="quiz-progress">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <span id="progressText">0%</span>
             </div>
-        }
-        <div class="text-center mt-4">
-            <button type="submit" class="btn-submit">إرسال الإجابات</button>
         </div>
-    </form>
-</div>
 
-@section Scripts {
-    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
-}
+        <form asp-action="SubmitQuiz" method="post" id="quizForm">
+            <input type="hidden" name="lessonId" value="@lessonId" />
+
+            @for (int i = 0; i < Model.Count; i++)
+            {
+                var question = Model[i];
+                <div class="question-card" data-question-id="@i">
+                    <div class="question-number">@(i + 1)</div>
+                    <h5 class="question-text">@question.QuestionText</h5>
+
+                    @switch (question.QuestionType)
+                    {
+                        case "MultipleChoice":
+                            <div class="options-container">
+                                @if (!string.IsNullOrEmpty(question.OptionA) && question.OptionA != "N/A")
+                                {
+                                    <label class="option-label">
+                                        <input type="radio" name="answers[@question.QuestionId]" value="@question.OptionA" class="option-input" required />
+                                        <span class="option-text">@question.OptionA</span>
+                                    </label>
+                                }
+
+                                @if (!string.IsNullOrEmpty(question.OptionB) && question.OptionB != "N/A")
+                                {
+                                    <label class="option-label">
+                                        <input type="radio" name="answers[@question.QuestionId]" value="@question.OptionB" class="option-input" />
+                                        <span class="option-text">@question.OptionB</span>
+                                    </label>
+                                }
+
+                                @if (!string.IsNullOrEmpty(question.OptionC) && question.OptionC != "N/A")
+                                {
+                                    <label class="option-label">
+                                        <input type="radio" name="answers[@question.QuestionId]" value="@question.OptionC" class="option-input" />
+                                        <span class="option-text">@question.OptionC</span>
+                                    </label>
+                                }
+
+                                @if (!string.IsNullOrEmpty(question.OptionD) && question.OptionD != "N/A")
+                                {
+                                    <label class="option-label">
+                                        <input type="radio" name="answers[@question.QuestionId]" value="@question.OptionD" class="option-input" />
+                                        <span class="option-text">@question.OptionD</span>
+                                    </label>
+                                }
+                            </div>
+                            break;
+
+                        case "TrueFalse":
+                            <div class="options-container true-false">
+                                <label class="option-label true-option">
+                                    <input type="radio" name="answers[@question.QuestionId]" value="True" class="option-input" required />
+                                    <span class="option-text">
+                                        <i class="fas fa-check"></i> صح
+                                    </span>
+                                </label>
+
+                                <label class="option-label false-option">
+                                    <input type="radio" name="answers[@question.QuestionId]" value="False" class="option-input" />
+                                    <span class="option-text">
+                                        <i class="fas fa-times"></i> خطأ
+                                    </span>
+                                </label>
+                            </div>
+                            break;
+
+                        case "Text":
+                            <div class="text-answer">
+                                <textarea name="answers[@question.QuestionId]"
+                                          class="text-area-input"
+                                          placeholder="اكتب إجابتك هنا..."
+                                          rows="3"
+                                          required></textarea>
+                            </div>
+                            break;
+                    }
+
+                    <div class="question-footer">
+                        <div class="question-type-badge">
+                            @switch (question.QuestionType)
+                            {
+                                case "MultipleChoice":
+                                    <span><i class="fas fa-list-ul"></i> اختيار من متعدد</span>
+                                    break;
+                                case "TrueFalse":
+                                    <span><i class="fas fa-check-circle"></i> صح / خطأ</span>
+                                    break;
+                                case "Text":
+                                    <span><i class="fas fa-pen"></i> سؤال مقالي</span>
+                                    break;
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+
+            <div class="quiz-footer slide-up-fade">
+                <button type="button" class="action-btn back-btn" id="prevBtn" disabled>
+                    <i class="fas fa-chevron-right"></i> السؤال السابق
+                </button>
+
+                <button type="button" class="action-btn next-btn" id="nextBtn">
+                    السؤال التالي <i class="fas fa-chevron-left"></i>
+                </button>
+
+                <button type="submit" class="action-btn submit-btn" id="submitBtn" style="display: none;">
+                    <i class="fas fa-paper-plane"></i> إرسال الإجابات
+                </button>
+            </div>
+        </form>
+
+        <!-- Timer -->
+        <div class="quiz-timer" id="quizTimer">
+            <i class="fas fa-clock"></i>
+            <span id="timerDisplay">00:00</span>
+        </div>
+
+        <!-- Theme Toggle Button -->
+        <button class="theme-toggle" id="themeToggle" aria-label="تبديل المظهر">
+            <i class="fas fa-moon"></i>
+        </button>
+    </div>
+
+    <script src="~/js/quiz.js"></script>
+</body>
+</html>
